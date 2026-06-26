@@ -1,0 +1,132 @@
+{
+  "order": [
+    "mini5pro",
+    "air3s",
+    "mavic4pro",
+    "matrice4e"
+  ],
+  "modes": [
+    "wifi_preamble",
+    "lte_crs",
+    "5g_ssb_sparse",
+    "5g_dmrs_prs_rich"
+  ],
+  "pd": [
+    [
+      1.0,
+      1.0,
+      0.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      0.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      0.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "scr": [
+    [
+      27.779987828607858,
+      21.956000017457406,
+      9.10493429845709,
+      29.72360060859092
+    ],
+    [
+      31.467619484902755,
+      25.563604179898885,
+      11.677481432946987,
+      33.428099381886355
+    ],
+    [
+      32.79336889010034,
+      26.91737778823503,
+      13.499097420178089,
+      34.73956929195184
+    ],
+    [
+      35.36179561366728,
+      29.529755761327692,
+      15.852542993955751,
+      37.35862952124296
+    ]
+  ],
+  "eff_snr_db": {
+    "mini5pro": -29.02050182710522,
+    "air3s": -24.990973385429008,
+    "mavic4pro": -22.991781109723366,
+    "matrice4e": -21.053783136066713
+  },
+  "snr_ref": -23.0,
+  "ref": "mavic4pro",
+  "drones": {
+    "mini5pro": {
+      "name": "DJI Mini 5 Pro",
+      "takeoff_g": 249.9,
+      "unfolded_mm": [
+        304,
+        380,
+        91
+      ],
+      "max_speed_ms": 19.0,
+      "radar_size_m": 0.17,
+      "rcs_dbsm": -24.0,
+      "rtk": false,
+      "note": "sub-250 g, smallest/hardest"
+    },
+    "air3s": {
+      "name": "DJI Air 3S",
+      "takeoff_g": 724.0,
+      "unfolded_mm": [
+        266,
+        325,
+        106
+      ],
+      "max_speed_ms": 21.0,
+      "radar_size_m": 0.22,
+      "rcs_dbsm": -20.0,
+      "rtk": false,
+      "note": "mid consumer (~WiFi-21a anchor)"
+    },
+    "mavic4pro": {
+      "name": "DJI Mavic 4 Pro",
+      "takeoff_g": 1063.0,
+      "unfolded_mm": [
+        329,
+        391,
+        135
+      ],
+      "max_speed_ms": 25.0,
+      "radar_size_m": 0.27,
+      "rcs_dbsm": -18.0,
+      "rtk": false,
+      "note": "largest consumer, fastest"
+    },
+    "matrice4e": {
+      "name": "DJI Matrice 4E",
+      "takeoff_g": 1219.0,
+      "unfolded_mm": [
+        307,
+        388,
+        150
+      ],
+      "max_speed_ms": 21.0,
+      "radar_size_m": 0.29,
+      "rcs_dbsm": -16.0,
+      "rtk": true,
+      "note": "enterprise + onboard RTK"
+    }
+  }
+}

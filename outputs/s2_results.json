@@ -1,0 +1,128 @@
+{
+  "config": {
+    "fc": 3500000000.0,
+    "B": 100000000.0,
+    "M": 8192,
+    "N": 512,
+    "l_max": 200,
+    "input_snr_db": -23.0,
+    "waveform": "qpsk",
+    "tx_pos": [
+      -50.0,
+      0.0,
+      20.0
+    ],
+    "rx_pos": [
+      50.0,
+      0.0,
+      10.0
+    ],
+    "drone_pos": [
+      0.0,
+      30.0,
+      40.0
+    ],
+    "drone_vel": [
+      0.0,
+      15.0,
+      0.0
+    ],
+    "drone_size": 0.3,
+    "max_depth": 2,
+    "samples_per_src": 2000000,
+    "seed": 1,
+    "pfa": 1e-05,
+    "guard": [
+      2,
+      2
+    ],
+    "train": [
+      6,
+      8
+    ],
+    "doppler_notch_hz": 30.0,
+    "cfar_exclude_notch": true,
+    "hit_tol_m": 30.0,
+    "outdir": "/home/yunjung/workspace/jeong_sionna/outputs",
+    "assets_dir": "/home/yunjung/workspace/jeong_sionna/assets",
+    "tag": "stage1_5g_like"
+  },
+  "ofdm": {
+    "n_fft": 4096,
+    "cp": 512
+  },
+  "gt": {
+    "tau_direct": 3.352277531121217e-07,
+    "tau_drone": 4.2372300868009916e-07,
+    "bistatic_delay": 8.849525556797744e-08,
+    "bistatic_range_m": 26.530210188062142,
+    "doppler_hz": -164.74537658691406,
+    "n_paths": 4,
+    "tau_all_ns": [
+      335.23,
+      423.72,
+      461.24,
+      348.25
+    ],
+    "dop_all_hz": [
+      0.0,
+      -164.75,
+      -153.01,
+      0.0
+    ]
+  },
+  "results": {
+    "wifi_preamble": {
+      "mode": "wifi_preamble",
+      "known_fraction": 0.18421052631578946,
+      "scr_db_mean": 22.303829430296997,
+      "scr_db_std": 0.38734409041509604,
+      "psl_db_mean": 1.0242494338045498,
+      "pd": 1.0,
+      "far": 9.701301155382788e-06,
+      "peakR_std": 0.0,
+      "peakD_std": 0.0,
+      "n_trials": 24,
+      "snr_db": -23.0
+    },
+    "lte_crs": {
+      "mode": "lte_crs",
+      "known_fraction": 0.04772065815172697,
+      "scr_db_mean": 16.638255848695135,
+      "scr_db_std": 1.0136687854041253,
+      "psl_db_mean": 4.712798861946292,
+      "pd": 1.0,
+      "far": 1.3075666774646367e-05,
+      "peakR_std": 0.0,
+      "peakD_std": 0.0,
+      "n_trials": 24,
+      "snr_db": -23.0
+    },
+    "5g_ssb_sparse": {
+      "mode": "5g_ssb_sparse",
+      "known_fraction": 0.002055921052631579,
+      "scr_db_mean": 5.4592007790542745,
+      "scr_db_std": 2.330020950897282,
+      "psl_db_mean": -3.744533808263714,
+      "pd": 0.0,
+      "far": 0.0,
+      "peakR_std": 2.859401263261575,
+      "peakD_std": 13.729209662561868,
+      "n_trials": 24,
+      "snr_db": -23.0
+    },
+    "5g_dmrs_prs_rich": {
+      "mode": "5g_dmrs_prs_rich",
+      "known_fraction": 0.2850877192982456,
+      "scr_db_mean": 24.372757153293804,
+      "scr_db_std": 0.3075806843389983,
+      "psl_db_mean": 12.469764438929685,
+      "pd": 1.0,
+      "far": 8.857709750566894e-06,
+      "peakR_std": 0.0,
+      "peakD_std": 0.0,
+      "n_trials": 24,
+      "snr_db": -23.0
+    }
+  }
+}

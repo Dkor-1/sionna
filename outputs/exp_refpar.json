@@ -1,0 +1,34 @@
+{
+  "wifi_preamble|pilots": {
+    "pd": 1.0,
+    "scr": 20.799793616262512
+  },
+  "wifi_preamble|full": {
+    "pd": 1.0,
+    "scr": 28.225473432090567
+  },
+  "lte_crs|pilots": {
+    "pd": 1.0,
+    "scr": 14.81458978648287
+  },
+  "lte_crs|full": {
+    "pd": 1.0,
+    "scr": 28.191245155295853
+  },
+  "5g_ssb_sparse|pilots": {
+    "pd": 0.0,
+    "scr": 3.58625538093925
+  },
+  "5g_ssb_sparse|full": {
+    "pd": 1.0,
+    "scr": 28.207661867143614
+  },
+  "5g_dmrs_prs_rich|pilots": {
+    "pd": 1.0,
+    "scr": 22.49142182594182
+  },
+  "5g_dmrs_prs_rich|full": {
+    "pd": 1.0,
+    "scr": 28.176666770716366
+  }
+}
