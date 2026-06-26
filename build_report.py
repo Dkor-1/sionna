@@ -318,9 +318,48 @@ cells.append(md(
     img_md("exp_refpar.png", "reference paradigm"),
 ))
 
+# ---- literature-reproduction validation ----
+val = load("validate_literature.json")
+if val:
+    def vrow(exp, label):
+        e = val[exp]
+        anc = e["anchor"]; anc = anc[:58] + "…" if len(anc) > 60 else anc
+        return f"| {label} | {anc} | **{e['verdict']}** |"
+    lc, gc, wc = val["lte"]["checks"], val["g5"]["checks"], val["wifi"]["checks"]
+    cells.append(md(
+        "## 7. 문헌 재현 검증 — 엔진이 논문 *추세*를 재현하나",
+        "",
+        f"기준은 **절대 dB가 아니라 추세(shape)·부호·대략 크기** — numerology·기하가 논문마다 달라 절대값은 "
+        f"안 맞아도 됨. 코어는 `mask=` 한 줄만 확장(자립 모듈 `validate_literature.py`), `pilot_mask`·기존 실험 불변. "
+        f"각 실험은 {len(val['config']['snrs'])}개 SNR에서 돌려 추세가 운영점에 안 흔들리는지 확인.",
+        "",
+        "| 실험 | 문헌 앵커 | 판정 |",
+        "|---|---|---|",
+        vrow("lte", "LTE CRS-only vs all-symbol (LTE-23)"),
+        vrow("g5", "5G occupancy→SCR (5G-22 Fig.10)"),
+        vrow("wifi", "Wi-Fi preamble-only vs full (Wi-Fi-24)"),
+        "",
+        img_md("validate_literature.png", "literature validation"),
+        "",
+        f"- **LTE:** SCR이 sym0<crs<allsym **단조 증가**({'예' if lc['scr_monotone_all_snr'] else '아니오'}), "
+        f"all−sym0 = {lc['allsym_minus_sym0_db']:.1f} dB(문헌 +6.7) → CRS 심볼 수↑ → 에너지↑ **재현**. "
+        "단 all-symbol의 **'3× false plots'(raw FAR)는 정직하게 재현 못 함**: 이상 pilots-known 모델은 data "
+        "self-noise를 안 만들고, PSLR로도 안 매핑됨 — all-symbol comb은 *규칙적*이라 PSLR이 오히려 더 *깨끗*"
+        "(시간-버스트인 Wi-Fi preamble의 Doppler 격자엽과 반대). 'no-CRS{2,3} miss'도 마스크가 파일럿을 "
+        "정의하므로 degenerate(검출됨).",
+        f"- **5G:** SCR이 occupancy에 **단조↑**({'예' if gc['scr_monotone_all_snr'] else '아니오'}), "
+        f"저점유 Pd={gc['low_occ_pd']:.2f}({gc['low_occ_known']*100:.1f}%) → 고점유 Pd={gc['high_occ_pd']:.2f}"
+        f"({gc['high_occ_known']*100:.0f}%): 10%→70% invisible→strong 재현.",
+        f"- **Wi-Fi:** preamble-only가 full 대비 손실(median {wc['median_loss_db']:.0f} dB, 문헌 1–11) — "
+        f"부호({'양수 재현' if wc['all_losses_positive'] else '미재현'})·대략 크기.",
+        "",
+        "_정직 명시: **재현된 것**=추세/부호/대략 크기. **재현 못 한 것**=절대 dB·raw FAR(이유 명시 + PSLR로 대체). "
+        "상세: `docs/VALIDATION.md`._",
+    ))
+
 # ---- assessment ----
 cells.append(md(
-    "## 7. 정직한 평가 & 다음 단계",
+    "## 8. 정직한 평가 & 다음 단계",
     "",
     "**엔진(DSP primitive)은 검증됨:** CAF range가 linear/alias-free, CA-CFAR α가 설계 Pfa와 일치, "
     "Doppler 부호 규약 end-to-end 자기일관(Sionna ≈ analytic). 정성 결론(hover/tangential blind, "

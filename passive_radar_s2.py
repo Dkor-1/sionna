@@ -117,19 +117,23 @@ def pilot_mask(mode: str, n_sym: int, n_fft: int) -> np.ndarray:
 
 
 def synth_ofdm(cfg: Config, ofdm: OFDM, mode: str, rng: np.random.Generator,
-               full_ref: bool = False):
+               full_ref: bool = False, mask=None):
     """Return (s_full, s_ref, known_fraction).
     s_full : transmitted illuminator (all REs, unit power)  -> surveillance input
     s_ref  : reference for the CAF.
              full_ref=False -> rebuilt from KNOWN pilot REs only (realistic,
              reference-structure-limited; the project's hypothesis regime).
              full_ref=True  -> the full transmitted signal (clean reference-
-             antenna capture; upper bound, reference structure irrelevant)."""
+             antenna capture; upper bound, reference structure irrelevant).
+    mask   : None -> use the standard pilot_mask(mode); else inject a custom mask,
+             either a [n_sym, n_fft] bool array or a callable mask(n_sym, n_fft).
+             Used by validate_literature.py; pilot_mask stays untouched."""
     K = cfg.N * cfg.M
     sym_len = ofdm.sym_len
     n_sym = int(np.ceil((K + sym_len) / sym_len))
 
-    mask = pilot_mask(mode, n_sym, ofdm.n_fft)
+    mask = (pilot_mask(mode, n_sym, ofdm.n_fft) if mask is None
+            else (mask(n_sym, ofdm.n_fft) if callable(mask) else mask))
     pilot_vals = _qpsk(np.random.default_rng(PILOT_SEED), (n_sym, ofdm.n_fft))
     data_vals = _qpsk(rng, (n_sym, ofdm.n_fft))           # unknown to radar
     grid_full = np.where(mask, pilot_vals, data_vals)
@@ -253,16 +257,17 @@ def rd_metrics(power, range_axis, dopp_axis, gt, cfg, det=None):
 
 
 def run_mode(cfg: Config, ofdm: OFDM, mode: str, h, gt, drone_tap,
-             snr_db, n_trials, base_seed, noise_pow=None, full_ref=False):
+             snr_db, n_trials, base_seed, noise_pow=None, full_ref=False, mask=None):
     """Monte-Carlo over data+noise realizations for one signal mode.
     noise_pow=None -> per-drone-normalised SNR (mode comparison); set absolute
     noise_pow to compare drones (RCS then drives effective SNR).
-    full_ref=True -> clean reference-antenna upper bound."""
+    full_ref=True -> clean reference-antenna upper bound.
+    mask -> inject a custom pilot mask (validate_literature.py); else pilot_mask(mode)."""
     scrs, psls, hits, fas, n_tests, peaksR, peaksD = [], [], [], [], [], [], []
     rd_show = known_frac = None
     for t in range(n_trials):
         rng = np.random.default_rng(base_seed + 7919 * t)   # SAME seq across modes
-        s_full, s_ref, known_frac = synth_ofdm(cfg, ofdm, mode, rng, full_ref)
+        s_full, s_ref, known_frac = synth_ofdm(cfg, ofdm, mode, rng, full_ref, mask)
         X_clean = surveillance(cfg, s_full, h, drone_tap, snr_db, rng, noise_pow)
         Rmat = s_ref.reshape(cfg.N, cfg.M)
         rd, range_axis, dopp_axis = caf_range_doppler(cfg, X_clean, Rmat, mti=False)

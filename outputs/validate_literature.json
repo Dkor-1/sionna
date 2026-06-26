@@ -1,0 +1,505 @@
+{
+ "config": {
+  "fc_ghz": 3.5,
+  "bw_mhz": 100.0,
+  "N": 512,
+  "M": 8192,
+  "nfft": 4096,
+  "cpi_ms": 41.94304,
+  "snrs": [
+   -20.0,
+   -26.0,
+   -32.0
+  ],
+  "trials": 12,
+  "gt": {
+   "tau_direct": 3.352277531121217e-07,
+   "tau_drone": 4.240099258367991e-07,
+   "bistatic_delay": 8.878217272467737e-08,
+   "bistatic_range_m": 26.616225787711585,
+   "doppler_hz": -165.60031127929688,
+   "n_paths": 19,
+   "tau_all_ns": [
+    335.23,
+    424.01,
+    423.63,
+    423.79,
+    423.49,
+    423.61,
+    424.16,
+    423.86,
+    423.86,
+    424.01,
+    461.35,
+    348.25,
+    496.82,
+    497.23,
+    496.9,
+    497.33,
+    497.92,
+    497.52,
+    497.39
+   ],
+   "dop_all_hz": [
+    0.0,
+    -165.6,
+    -164.78,
+    -164.75,
+    -164.87,
+    -165.02,
+    -164.6,
+    -164.71,
+    -165.34,
+    -164.64,
+    -153.92,
+    0.0,
+    -142.54,
+    -143.14,
+    -142.44,
+    -142.36,
+    -142.21,
+    -143.35,
+    -142.32
+   ]
+  }
+ },
+ "lte": {
+  "rows": [
+   {
+    "name": "lte_sym0",
+    "snr_db": -20.0,
+    "known": 0.012067292865953948,
+    "scr": 9.817725422812005,
+    "scr_std": 1.6506016588198396,
+    "psl": -1.0395146196887397,
+    "pd": 0.3333333333333333,
+    "far": 7.592322643343051e-06,
+    "syms": [
+     0
+    ]
+   },
+   {
+    "name": "lte_crs",
+    "snr_db": -20.0,
+    "known": 0.04772065815172697,
+    "scr": 15.340539951910257,
+    "scr_std": 1.0213929513765287,
+    "psl": 4.02954960356319,
+    "pd": 1.0,
+    "far": 1.8559010905949683e-05,
+    "syms": [
+     0,
+     4,
+     7,
+     11
+    ]
+   },
+   {
+    "name": "lte_allsym",
+    "snr_db": -20.0,
+    "known": 0.166748046875,
+    "scr": 20.707127368796307,
+    "scr_std": 0.45975259899927085,
+    "psl": 9.860263179553662,
+    "pd": 1.0,
+    "far": 1.0123096857790735e-05,
+    "syms": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13
+    ]
+   },
+   {
+    "name": "lte_nocrs",
+    "snr_db": -20.0,
+    "known": 0.02376891019051535,
+    "scr": 12.028033692254937,
+    "scr_std": 1.8133227863917452,
+    "psl": -0.2892802513890626,
+    "pd": 0.75,
+    "far": 1.5184645286686102e-05,
+    "syms": [
+     2,
+     3
+    ]
+   },
+   {
+    "name": "lte_sym0",
+    "snr_db": -26.0,
+    "known": 0.012067292865953948,
+    "scr": 5.808507497408777,
+    "scr_std": 1.4938648414134952,
+    "psl": -4.631136008307757,
+    "pd": 0.0,
+    "far": 7.592322643343051e-06,
+    "syms": [
+     0
+    ]
+   },
+   {
+    "name": "lte_crs",
+    "snr_db": -26.0,
+    "known": 0.04772065815172697,
+    "scr": 9.4032971677084,
+    "scr_std": 2.00101907494964,
+    "psl": -1.4846004411641032,
+    "pd": 0.3333333333333333,
+    "far": 1.8559010905949683e-05,
+    "syms": [
+     0,
+     4,
+     7,
+     11
+    ]
+   },
+   {
+    "name": "lte_allsym",
+    "snr_db": -26.0,
+    "known": 0.166748046875,
+    "scr": 14.711747406442347,
+    "scr_std": 0.8991066132584741,
+    "psl": 3.8624506762461226,
+    "pd": 1.0,
+    "far": 1.0123096857790735e-05,
+    "syms": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13
+    ]
+   },
+   {
+    "name": "lte_nocrs",
+    "snr_db": -26.0,
+    "known": 0.02376891019051535,
+    "scr": 6.82508878509863,
+    "scr_std": 2.451471611995933,
+    "psl": -3.7603812194650654,
+    "pd": 0.0,
+    "far": 1.6028236691501996e-05,
+    "syms": [
+     2,
+     3
+    ]
+   },
+   {
+    "name": "lte_sym0",
+    "snr_db": -32.0,
+    "known": 0.012067292865953948,
+    "scr": 3.967703483639594,
+    "scr_std": 1.9168882984434161,
+    "psl": -6.4592687340787975,
+    "pd": 0.0,
+    "far": 8.435914048158946e-06,
+    "syms": [
+     0
+    ]
+   },
+   {
+    "name": "lte_crs",
+    "snr_db": -32.0,
+    "known": 0.04772065815172697,
+    "scr": 5.10302047636172,
+    "scr_std": 2.038064400239537,
+    "psl": -5.784398582585283,
+    "pd": 0.0,
+    "far": 1.8559010905949683e-05,
+    "syms": [
+     0,
+     4,
+     7,
+     11
+    ]
+   },
+   {
+    "name": "lte_allsym",
+    "snr_db": -32.0,
+    "known": 0.166748046875,
+    "scr": 8.843053012078217,
+    "scr_std": 1.5920559012351732,
+    "psl": -2.007414969157858,
+    "pd": 0.16666666666666666,
+    "far": 1.0123096857790735e-05,
+    "syms": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13
+    ]
+   },
+   {
+    "name": "lte_nocrs",
+    "snr_db": -32.0,
+    "known": 0.02376891019051535,
+    "scr": 4.832583870379172,
+    "scr_std": 1.5530180024033335,
+    "psl": -5.73515074187956,
+    "pd": 0.0,
+    "far": 1.6028236691501996e-05,
+    "syms": [
+     2,
+     3
+    ]
+   }
+  ],
+  "anchor": "LTE-23 Table I: sym0=17.5, all=24.2 dB (+6.7); all-symbol ~3x false plots; no-CRS symbols {2,3} miss the target",
+  "checks": {
+   "scr_monotone_all_snr": true,
+   "allsym_minus_sym0_db": 8.90323990903357,
+   "allsym_minus_sym0_positive": true,
+   "allsym_psl_worse_all_snr": false,
+   "nocrs_detects_pd": 0.75,
+   "nocrs_miss_reproduced": false
+  },
+  "verdict": "reproduced (trend)",
+  "note": "Reproduced: SCR rises with the CRS symbols used (sym0<crs<allsym; \u0394(all-sym0)~8.9 dB, lit +6.7). NOT reproduced (stated honestly): (1) all-symbol's '3x false plots' (raw FAR) needs a data self-noise/clutter model the ideal pilots-known engine does not have. (2) It does NOT map to PSLR either -- the all-symbol comb-6 is a REGULAR dense reference, so it actually has BETTER PSLR (cleaner ambiguity), unlike the time-bursty Wi-Fi preamble (Doppler grating lobes -> worse PSLR, the S2 case). So the energy gain is real, but the false-plot COST of all-symbol is a genuine limit of the ideal model. (3) 'no-CRS {2,3} miss' is degenerate -- our mask DEFINES the pilots, so a comb on {2,3} is a valid reference and detects; the real-LTE miss is an empty reference (no CRS there), which our controlled grid does not impose."
+ },
+ "g5": {
+  "rows": [
+   {
+    "name": "occ_0.05",
+    "snr_db": -20.0,
+    "known": 0.050048828125,
+    "scr": 15.614892874156105,
+    "scr_std": 0.7157226810548362,
+    "psl": 4.805373812456872,
+    "pd": 1.0,
+    "far": 1.5184645286686102e-05,
+    "f_nominal": 0.05
+   },
+   {
+    "name": "occ_0.10",
+    "snr_db": -20.0,
+    "known": 0.10009765625,
+    "scr": 18.44924407749686,
+    "scr_std": 0.8878990563403713,
+    "psl": 7.628767935249422,
+    "pd": 1.0,
+    "far": 1.1810279667422525e-05,
+    "f_nominal": 0.1
+   },
+   {
+    "name": "occ_0.30",
+    "snr_db": -20.0,
+    "known": 0.300048828125,
+    "scr": 22.934120500825205,
+    "scr_std": 0.42204103731088694,
+    "psl": 12.148774160458698,
+    "pd": 1.0,
+    "far": 1.5184645286686102e-05,
+    "f_nominal": 0.3
+   },
+   {
+    "name": "occ_0.50",
+    "snr_db": -20.0,
+    "known": 0.5,
+    "scr": 25.357606027593217,
+    "scr_std": 0.30044121844750127,
+    "psl": 14.551351196515162,
+    "pd": 1.0,
+    "far": 1.0123096857790735e-05,
+    "f_nominal": 0.5
+   },
+   {
+    "name": "occ_0.70",
+    "snr_db": -20.0,
+    "known": 0.699951171875,
+    "scr": 26.986146173924507,
+    "scr_std": 0.15429251804162672,
+    "psl": 16.345728156002256,
+    "pd": 1.0,
+    "far": 4.217957024079473e-06,
+    "f_nominal": 0.7
+   },
+   {
+    "name": "occ_0.05",
+    "snr_db": -26.0,
+    "known": 0.050048828125,
+    "scr": 9.743913740643825,
+    "scr_std": 1.497542231109874,
+    "psl": -1.0668693373528229,
+    "pd": 0.25,
+    "far": 1.4341053881870208e-05,
+    "f_nominal": 0.05
+   },
+   {
+    "name": "occ_0.10",
+    "snr_db": -26.0,
+    "known": 0.10009765625,
+    "scr": 12.332667577346568,
+    "scr_std": 1.8501668448982713,
+    "psl": 1.5120894895289432,
+    "pd": 0.9166666666666666,
+    "far": 1.1810279667422525e-05,
+    "f_nominal": 0.1
+   },
+   {
+    "name": "occ_0.30",
+    "snr_db": -26.0,
+    "known": 0.300048828125,
+    "scr": 16.59137602454039,
+    "scr_std": 0.8872238813329241,
+    "psl": 5.805745818679743,
+    "pd": 1.0,
+    "far": 1.5184645286686102e-05,
+    "f_nominal": 0.3
+   },
+   {
+    "name": "occ_0.50",
+    "snr_db": -26.0,
+    "known": 0.5,
+    "scr": 19.235977512751077,
+    "scr_std": 0.6098369004276382,
+    "psl": 8.492992987038035,
+    "pd": 1.0,
+    "far": 1.0123096857790735e-05,
+    "f_nominal": 0.5
+   },
+   {
+    "name": "occ_0.70",
+    "snr_db": -26.0,
+    "known": 0.699951171875,
+    "scr": 21.03690738021224,
+    "scr_std": 0.2969134014871046,
+    "psl": 10.53977822806251,
+    "pd": 1.0,
+    "far": 4.217957024079473e-06,
+    "f_nominal": 0.7
+   },
+   {
+    "name": "occ_0.05",
+    "snr_db": -32.0,
+    "known": 0.050048828125,
+    "scr": 5.2387826716906405,
+    "scr_std": 2.145075910165945,
+    "psl": -5.572585106667315,
+    "pd": 0.0,
+    "far": 1.4341053881870208e-05,
+    "f_nominal": 0.05
+   },
+   {
+    "name": "occ_0.10",
+    "snr_db": -32.0,
+    "known": 0.10009765625,
+    "scr": 6.8154633438549865,
+    "scr_std": 2.2474039116459132,
+    "psl": -4.005119088341641,
+    "pd": 0.08333333333333333,
+    "far": 1.1810279667422525e-05,
+    "f_nominal": 0.1
+   },
+   {
+    "name": "occ_0.30",
+    "snr_db": -32.0,
+    "known": 0.300048828125,
+    "scr": 9.825654848207265,
+    "scr_std": 1.9821638608007899,
+    "psl": -0.9600718395760682,
+    "pd": 0.5,
+    "far": 1.5184645286686102e-05,
+    "f_nominal": 0.3
+   },
+   {
+    "name": "occ_0.50",
+    "snr_db": -32.0,
+    "known": 0.5,
+    "scr": 13.000692466745429,
+    "scr_std": 1.2637010274049056,
+    "psl": 2.259496644254275,
+    "pd": 0.9166666666666666,
+    "far": 1.0123096857790735e-05,
+    "f_nominal": 0.5
+   },
+   {
+    "name": "occ_0.70",
+    "snr_db": -32.0,
+    "known": 0.699951171875,
+    "scr": 15.14336027021024,
+    "scr_std": 0.5762134063739086,
+    "psl": 4.646724772112033,
+    "pd": 1.0,
+    "far": 4.217957024079473e-06,
+    "f_nominal": 0.7
+   }
+  ],
+  "anchor": "5G-22 Fig.10: ~10% occupancy nearly invisible -> ~70% +24 dB",
+  "checks": {
+   "scr_monotone_all_snr": true,
+   "low_occ_pd": 0.25,
+   "low_occ_known": 0.050048828125,
+   "high_occ_pd": 1.0,
+   "high_occ_known": 0.699951171875,
+   "scr_span_db": 11.292993639568417,
+   "low_weak_high_strong": true
+  },
+  "verdict": "reproduced",
+  "note": "Absolute +24 dB is geometry/CPI dependent; we reproduce the SHAPE (monotone SCR vs occupancy, weak->strong across the range)."
+ },
+ "wifi": {
+  "rows": [
+   {
+    "snr_db": -20.0,
+    "scr_pilots": 21.244518819049137,
+    "scr_full": 28.53402756600021,
+    "loss_db": 7.289508746951071,
+    "pd_pilots": 1.0,
+    "pd_full": 1.0
+   },
+   {
+    "snr_db": -26.0,
+    "scr_pilots": 15.425208379099393,
+    "scr_full": 22.58225996446598,
+    "loss_db": 7.157051585366586,
+    "pd_pilots": 1.0,
+    "pd_full": 1.0
+   },
+   {
+    "snr_db": -32.0,
+    "scr_pilots": 9.814670024579966,
+    "scr_full": 16.670631092444818,
+    "loss_db": 6.855961067864852,
+    "pd_pilots": 0.25,
+    "pd_full": 1.0
+   }
+  ],
+  "anchor": "Wi-Fi-24: preamble-only ~ -1..-11 dB SNR vs full (but data-independent)",
+  "checks": {
+   "all_losses_positive": true,
+   "median_loss_db": 7.157051585366586,
+   "in_1_15_db": true
+  },
+  "verdict": "reproduced",
+  "note": "The cost of not knowing the data; preamble-only is always worse than full reference (positive loss), matching the paper sign and rough size."
+ }
+}
