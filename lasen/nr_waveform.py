@@ -31,6 +31,17 @@ class NRNumerology:
     cp_frac: float = 9 / 128          # normal CP fraction (~7%)
 
     @property
+    def t_sym(self) -> float:         # normal-CP OFDM symbol duration [s]
+        return (1.0 + self.cp_frac) / self.scs             # ~35.7 us @30 kHz
+
+    def n_symbols(self, window_s: float) -> int:           # OFDM symbols in a window
+        return int(round(window_s / self.t_sym))           # 100 ms -> ~2803
+
+    @property
+    def symbol_rate(self) -> float:   # slow-time sampling rate = OFDM symbol rate [Hz]
+        return 1.0 / self.t_sym                            # ~28 kHz (Doppler unambig +-14 kHz)
+
+    @property
     def fs(self) -> float:            # sample rate = full grid bandwidth
         return self.n_fft * self.scs                       # 92.16 MHz
 

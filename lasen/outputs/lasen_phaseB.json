@@ -1,0 +1,108 @@
+{
+ "phase": "B",
+ "config": {
+  "fc_ghz": 5.8,
+  "bw_mhz": 78.12,
+  "n_slow": 256,
+  "subsampled": true,
+  "n_symbols_full": 2803,
+  "K": 2604,
+  "prf_hz": 28029.19708029197,
+  "range_res_m": 1.9187945340501793,
+  "speed_ms": 12.0,
+  "noise_snr_db": 0.0
+ },
+ "gt": {
+  "range_m": 48.16834014645012,
+  "round_trip_m": 96.33668029290024,
+  "delay_s": 3.2134457596294916e-07,
+  "doppler_hz": -431.0949145513587,
+  "v_radial_ms": 11.141720290623113,
+  "Rtx": 48.46648326421054,
+  "Rrx": 48.4701970286897,
+  "baseline_m": 0.6,
+  "prf_hz": 28029.19708029197,
+  "window_s": 0.009133333333333334,
+  "n_slow": 256,
+  "n_symbols_full": 2803,
+  "subsampled": true,
+  "doppler_res_hz": 109.48905109489051,
+  "n_paths": 46
+ },
+ "roundtrip": {
+  "ok": true,
+  "cells": [
+   {
+    "target": [
+     20,
+     37
+    ],
+    "peak": [
+     20,
+     37
+    ],
+    "ok": true
+   },
+   {
+    "target": [
+     5,
+     100
+    ],
+    "peak": [
+     5,
+     100
+    ],
+    "ok": true
+   },
+   {
+    "target": [
+     50,
+     3
+    ],
+    "peak": [
+     50,
+     3
+    ],
+    "ok": true
+   },
+   {
+    "target": [
+     33,
+     64
+    ],
+    "peak": [
+     33,
+     64
+    ],
+    "ok": true
+   }
+  ]
+ },
+ "results": {
+  "sparse": {
+   "rho": 0.037000000000000005,
+   "realised": 0.03686635944700461,
+   "n_atoms": 12,
+   "fft_on_gt": true,
+   "fft_pslr_db": 43.0191650390625,
+   "omp_on_gt": true,
+   "omp_pslr_db": 155.55044555664062
+  },
+  "dense": {
+   "rho": 0.162,
+   "realised": 0.1617103494623656,
+   "n_atoms": 12,
+   "fft_on_gt": true,
+   "fft_pslr_db": 49.41093444824219,
+   "omp_on_gt": true,
+   "omp_pslr_db": 155.64337158203125
+  }
+ },
+ "gate": {
+  "roundtrip_ok": true,
+  "omp_recovers": true,
+  "dyn_range_gap": true,
+  "fft_leakier_sparse": true,
+  "gate_pass": true
+ }
+}

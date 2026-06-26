@@ -54,12 +54,15 @@ def analytic_gt(num: NRNumerology, geom, velocity) -> dict:
                 baseline_m=float(L))
 
 
-def trace_cfr(num: NRNumerology, geom, velocity, *, window_s=0.1, n_slow=256,
+def trace_cfr(num: NRNumerology, geom, velocity, *, window_s=0.1, n_slow=None,
               assets=None, drone_size=0.3, samples_per_src=20_000_000, seed=1):
     """Trace the monostatic channel and return the CFR H[n_slow, K_active] over the
     active subcarriers, the slow-time PRF, the baseband freqs, and the analytic GT.
 
-    H[t, f] = channel frequency response at slow-time t, baseband freq f (= Y/X)."""
+    H[t, f] = channel frequency response at slow-time t, baseband freq f (= Y/X).
+    R1 (faithful): the slow-time axis is REAL OFDM symbols — PRF = num.symbol_rate(),
+    and n_slow defaults to num.n_symbols(window_s) (~2803 @100 ms). A smaller n_slow
+    sub-samples the symbol stream (covers n_slow/PRF s) — flag it if used."""
     import sionna.rt as rt
     assets = assets or os.path.join(os.path.dirname(_HERE), "assets")
     cfg = Config()
@@ -75,13 +78,18 @@ def trace_cfr(num: NRNumerology, geom, velocity, *, window_s=0.1, n_slow=256,
     paths = rt.PathSolver()(scene, max_depth=cfg.max_depth, los=True,
                             specular_reflection=True, diffuse_reflection=True,
                             refraction=False, samples_per_src=samples_per_src, seed=seed)
-    prf = n_slow / window_s
+    n_full = num.n_symbols(window_s)
+    subsampled = n_slow is not None and n_slow < n_full
+    if n_slow is None:
+        n_slow = n_full
+    prf = num.symbol_rate                                  # R1: slow-time = symbol rate
     freqs = num.baseband_freqs().astype(np.float32)
     H = paths.cfr(frequencies=freqs, sampling_frequency=prf, num_time_steps=n_slow,
                   normalize_delays=True, normalize=False, out_type="numpy")
     H = np.asarray(H)[0, 0, 0, 0, :, :].astype(np.complex64)      # [n_slow, K]
     gt = analytic_gt(num, geom, velocity)
-    gt.update(prf_hz=float(prf), window_s=float(window_s), n_slow=int(n_slow),
-              doppler_res_hz=float(1.0 / window_s),
+    gt.update(prf_hz=float(prf), window_s=float(n_slow / prf), n_slow=int(n_slow),
+              n_symbols_full=int(n_full), subsampled=bool(subsampled),
+              doppler_res_hz=float(prf / n_slow),
               n_paths=int(np.sum(np.isfinite(np.asarray(paths.tau).ravel()))))
     return H, freqs, gt

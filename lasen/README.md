@@ -7,21 +7,22 @@ paper's eqs/params**, **phase-gated** (each phase proves itself with a figure be
 next), **viz-first** (every module emits a figure mapped to a LaSen figure).
 
 ## 👉 먼저 볼 것
-`outputs/lasen_phaseA.png` (+ `report.ipynb` once phases accumulate). Faithfulness &
-honest paper-diff: `docs/FAITHFULNESS.md`.
+**`report.ipynb`** (Phase A·B 그림 내장). Faithfulness/honest paper-diff: `docs/FAITHFULNESS.md`.
 
 ## Phases (gate must pass before the next)
 | | What | Gate | Status |
 |---|---|---|---|
 | **A** | monostatic CFR → full-band 2D-FFT RD | peak on analytic GT + 0-Hz clutter collapses (Fig 4) | ✅ PASS |
-| B | non-uniform occupancy + 2D-OMP (Eq 4-6) | sparse: 2D-FFT leaks, OMP clean (Tab.1) | ⏳ |
+| B | non-uniform occupancy + 2D-OMP (Eq 4-6) | round-trip + FFT leakage-floor vs OMP clean (Tab.1) | ✅ PASS |
 | C | ID score (Eq 7-9) + global/local + Kalman (Eq 10-13) | track follows GT (Fig 6) | ⏳ |
 | D | RMSE/CE/DR + baselines (2D-OMP, Lerp) | LaSen < baselines, RMSE trends (Fig 9,12-14) | ⏳ |
 
 ## Run
 ```bash
 PY=/home/yunjung/workspace/jeong/miniforge3/envs/sionna/bin/python
-CUDA_VISIBLE_DEVICES=0 $PY lasen/run_lasen.py --phase A      # monostatic CFR→RD sanity
+CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=0 $PY lasen/run_lasen.py --phase A   # CFR→RD sanity
+CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=0 $PY lasen/run_lasen.py --phase B   # occupancy+2D-OMP
+$PY lasen/build_report.py                                                  # report.ipynb 재생성
 ```
 Numerology: SCS 30 kHz, 3072-FFT, 2604 active SC, BW 78.12 MHz, fc 5.8 GHz.
 
