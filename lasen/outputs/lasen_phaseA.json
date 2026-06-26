@@ -1,0 +1,41 @@
+{
+ "phase": "A",
+ "config": {
+  "fc_ghz": 5.8,
+  "bw_mhz": 78.12,
+  "scs_khz": 30.0,
+  "n_fft": 3072,
+  "n_active": 2604,
+  "n_slow": 256,
+  "window_ms": 100.0,
+  "prf_hz": 2560.0,
+  "range_res_m": 1.9187945340501793,
+  "speed_ms": 12.0
+ },
+ "gt": {
+  "range_m": 48.16834014645012,
+  "round_trip_m": 96.33668029290024,
+  "delay_s": 3.2134457596294916e-07,
+  "doppler_hz": -431.0949145513587,
+  "v_radial_ms": 11.141720290623113,
+  "Rtx": 48.46648326421054,
+  "Rrx": 48.4701970286897,
+  "baseline_m": 0.6,
+  "prf_hz": 2560.0,
+  "window_s": 0.1,
+  "n_slow": 256,
+  "doppler_res_hz": 10.0,
+  "n_paths": 46
+ },
+ "gate": {
+  "peak_range_m": 47.96986335125448,
+  "peak_doppler_hz": -430.0,
+  "range_err_m": 0.19847679519563854,
+  "doppler_err_hz": 1.0949145513587268,
+  "peak_on_gt": true,
+  "clutter_drop_db": -124.44045979189593,
+  "clutter_collapses": true,
+  "doppler_velocity_match": true,
+  "gate_pass": true
+ }
+}

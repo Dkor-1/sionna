@@ -13,3 +13,4 @@ outputs/*.npz
 # OS / editor
 .DS_Store
 *.swp
+lasen/outputs/*.npz
