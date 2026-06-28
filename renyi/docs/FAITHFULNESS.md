@@ -21,9 +21,12 @@ flight) swaps in a Sionna-RT bistatic channel.
 - **5G-NR numerology (Sec 6):** SCS 30 kHz, fs 61.44 MHz, 2048-FFT, 1272 active SC =
   38.16 MHz occupied, fc 3.44 GHz; content fill 0..100 % at RB×slot granularity
   ("random positions in the time-frequency allocation grid", Figs 5-7).
-- **Rényi-entropy method (Sec 5):** STFT (Eq 6) → TF = |STFT| → Rényi entropy (Eq 8)
-  with **γ = 3**; calibrate to the full-allocation max, then keep frames above a
-  threshold (paper: 25.5 vs max 25.67 ≈ 99 %; we use the same fraction). `renyi.py`.
+- **Rényi-entropy method (Sec 5):** STFT (Eq 6) → TF = **|STFT|** (paper Sec 5.1, abs not
+  squared) → Rényi entropy (Eq 8) with **γ = 3**; calibrate to the full-allocation max,
+  then keep frames above a threshold. Paper states **two** thresholds: a general rule
+  ">90 % of max" (Sec 5.2 step 3) and the actual experiment value **25.5 vs max 25.67 =
+  99.3 %** (Sec 7.2). We use **0.95·max** — between the two, because our smaller STFT grid
+  compresses the entropy's dynamic range so 0.90 no longer separates the bands (see #1). `renyi.py`.
 - **Baselines that fail (Sec 4):** power measurement (Sec 4.2, Fig 10) and RMS
   effective bandwidth B = ∫A(f)df / A_max (Eq 4, Sec 4.3, Fig 11) — reproduced as the
   foils the entropy beats. `content_metrics.py`.
@@ -37,15 +40,20 @@ flight) swaps in a Sionna-RT bistatic channel.
 
 ## Different (stated honestly)
 1. **Two equations are implemented as the paper's numbers imply, not as printed:**
-   - **Eq 8 normalisation.** As printed it divides by `∫∫TF` (L1), but the reported
-     magnitudes (~25.8 at full = log₂ of the TF-grid cell count) are the *normalised*
-     Rényi entropy of the cited Baraniuk 2001 (ref [38]); we normalise TF to a
-     distribution first. We therefore reproduce the **shape** (monotonic in fill,
-     SNR-robust); the absolute value scales with the STFT grid size (our local grid
-     → H ≈ 13–17, not 20–26). `renyi.py` header documents this.
-   - **Eq 9 power law.** The printed `sqrt(·)` does not give Fig 14's magnitudes; the
-     standard monostatic-equivalent **4th-power** law `R_e = (·)^{1/4}` does (verified
-     above). Read as a typo; `range_eq.py` uses the 4th root and says so.
+   - **Eq 8 normalisation.** As printed it divides `∫∫TF^γ` by `∫∫TF` (the denominator
+     is missing the γ exponent). The paper's reported magnitudes are the *normalised*
+     Rényi entropy of the cited Baraniuk 2001 (ref [38]) — divide by `(∫∫TF)^γ`, i.e.
+     normalise TF to a distribution first — which is what we implement (the two differ by
+     exactly `log₂∫∫TF`). We thus reproduce the **shape** (monotonic in fill, SNR-robust)
+     but not the absolute level, which scales with the STFT grid size. **Paper magnitudes
+     (Sec 5.1):** no-content **19.63**, some **23.41**, full **24.56**; calibration max
+     **25.67**, threshold 25.5. **Ours** (20 dB SNR, fill 0→1): H ≈ **14.5 → 17.9** —
+     same monotonic shape, ~2× compressed range (smaller local STFT grid). `renyi.py` documents this.
+   - **Eq 9 power law.** The printed `sqrt(·)` is physically absurd — with Table 2 it gives
+     R_e ≈ **668,000 km** for RCS 1 m²/0.5 s. The standard monostatic-equivalent **4th-power**
+     law `R_e = (·)^{1/4}` gives **25.84 km** (≈ paper Fig 14's ~25.8 km; RCS 100 m²/1 s →
+     97.16 km ≈ ~97.2). Read as a typo; `range_eq.py` uses the 4th root and says so. (T0 493 K
+     ⇒ Nf 4.31 dB, consistent with Eq 10.)
 2. **5G waveform library.** Paper uses the MATLAB 5G toolbox; this container has only
    `sionna-rt` (no TF PHY), so the grid is generated in **NumPy** with the same
    numerology (same as `../lasen/`). Equivalent structure, different library.
@@ -79,7 +87,10 @@ flight) swaps in a Sionna-RT bistatic channel.
    the kept CPI lands ~18 dB SCR) — rather than running a live streaming frame-gate.
    Ray-traced multipath is real: a double-bounce (drone→ground→Rx)
    can out-peak the direct drone path at some geometries, so the trajectory plots the CFAR
-   detection nearest the GT (the drone's own return), not the global RD maximum.
+   detection nearest the GT (the drone's own return), not the global RD maximum. The
+   velocity-resolution numbers ΔV = λ/T_int = **4.36 → 0.87 m/s** for T_int 20 → 100 ms are
+   **analytically exact** for the paper's λ (8.7 cm at 3.44 GHz) and Eq 2 (V_b = −λf_d) —
+   not fitted; only the *channel/target* differ from the paper's real M600 flight (Fig 21→22).
 
 ## Status (phase-gated)
 | Phase | What | Gate | Status |
