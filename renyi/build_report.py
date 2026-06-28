@@ -80,6 +80,9 @@ def phase_d_cells(D):
            "Phase A–C의 **해석적 echo를 Sionna RT 실제 bistatic 채널로 교체**: gNB 송신·수동 "
            "수신·드론 산란체 + 지면 클러터를 광선추적 → 실제 멀티패스. 같은 CAF+CA-CFAR+Rényi "
            "선택 DSP로 처리하고 **Sionna의 정확한 GT**에 검출을 겹쳐 검증.", "", summary),
+        md("### 📊 한눈에 보기 — Phase D 요약 대시보드",
+           "장면·검출·엔트로피 선택·궤적·속도 선명화를 한 장에. (세부는 D1–D6)",
+           "", img_md("phaseD_overview.png", "Phase D overview")),
         md("### D1 · bistatic 장면 + 비행 궤적 (Fig 18)",
            "gNB(송신)·수동 Rx·드론 궤적의 3D 기하. baseline L과 showcase waypoint의 LOS 표시.",
            "", img_md("phaseD_geometry.png", "scene geometry")),

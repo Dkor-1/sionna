@@ -1,8 +1,9 @@
 {
   "phase": "D",
   "sionna_available": true,
-  "elapsed_s": 12.5,
+  "elapsed_s": 13.0,
   "figures": {
+    "overview": "phaseD_overview.png",
     "geometry": "phaseD_geometry.png",
     "channel": "phaseD_channel.png",
     "snapshot_rd": "phaseD_snapshot_rd.png",
@@ -25,7 +26,7 @@
       "V_b_gt": 10.02,
       "R_b_det": 19.52,
       "V_b_det": 10.89,
-      "scr_db": 30.43,
+      "scr_db": 30.41,
       "hit": true,
       "valid": true
     },
@@ -45,7 +46,7 @@
       "V_b_gt": 13.81,
       "R_b_det": 29.28,
       "V_b_det": 13.07,
-      "scr_db": 19.62,
+      "scr_db": 20.78,
       "hit": true,
       "valid": true
     },

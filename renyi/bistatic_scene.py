@@ -336,164 +336,312 @@ def _gate(results: dict) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-#  Visualisation (six figures, mapped to paper Figs 18/20/21/22/23/24)
+#  Visualisation — Korean-annotated, viz-first (overview dashboard + 6 figures
+#  mapped to paper Figs 18/20/21/22/23/24). Korean labels render if NanumGothic
+#  is available (auto-registered); else they fall back to English.
 # --------------------------------------------------------------------------- #
+_KO = None
+
+
+def _setup_style(plt):
+    """Register a Korean font (if present) and set readable defaults. Returns True
+    if Korean glyphs will render."""
+    global _KO
+    import matplotlib.font_manager as fm
+    ok = False
+    for p in (os.path.join(_HERE, "assets", "NanumGothic.ttf"),        # repo-local (reproducible)
+              os.path.expanduser("~/.local/share/fonts/NanumGothic.ttf")):
+        if os.path.exists(p):
+            try:
+                fm.fontManager.addfont(p)
+                # Korean glyphs from NanumGothic, symbols/accents (é, Δ, ✓, ①) fall
+                # back to DejaVu Sans (matplotlib >=3.6 does per-glyph fallback).
+                plt.rcParams["font.family"] = [fm.FontProperties(fname=p).get_name(),
+                                               "DejaVu Sans"]
+                ok = True
+                break
+            except Exception:
+                pass
+    plt.rcParams.update({"axes.unicode_minus": False, "font.size": 12,
+                         "axes.titlesize": 13, "axes.labelsize": 12,
+                         "legend.fontsize": 9.5, "xtick.labelsize": 10,
+                         "ytick.labelsize": 10, "figure.dpi": 130, "savefig.dpi": 145})
+    _KO = ok
+    return ok
+
+
+def _T(ko, en):
+    """Korean if a Korean font is active, else English fallback."""
+    return ko if _KO else en
+
+
+# ---- reusable panels -------------------------------------------------------- #
+def _geom2d(ax, g, snap):
+    """Top-down (x-y) bistatic geometry — easier to read than 3D."""
+    tx, rx = np.array(g["tx"]), np.array(g["rx"])
+    wp = np.array(g["waypoints"]); sc_i = g.get("showcase", len(wp) // 2)
+    d = np.array(snap["pos"])
+    ax.plot([tx[0], rx[0]], [tx[1], rx[1]], "--", color="0.4", lw=1.4, zorder=1)
+    ax.annotate(_T("기준선 L", "baseline L"), ((tx[0] + rx[0]) / 2, (tx[1] + rx[1]) / 2),
+                fontsize=8, color="0.4", ha="center", va="top")
+    ax.plot([tx[0], d[0]], [tx[1], d[1]], ":", color="tab:red", lw=1.2, alpha=.7)
+    ax.plot([rx[0], d[0]], [rx[1], d[1]], ":", color="tab:blue", lw=1.2, alpha=.7)
+    ax.annotate("R1", ((tx[0] + d[0]) / 2, (tx[1] + d[1]) / 2), fontsize=8, color="tab:red")
+    ax.annotate("R2", ((rx[0] + d[0]) / 2, (rx[1] + d[1]) / 2), fontsize=8, color="tab:blue")
+    ax.plot(wp[:, 0], wp[:, 1], "-", color="green", lw=1.3, alpha=.5, zorder=2)
+    s = ax.scatter(wp[:, 0], wp[:, 1], c=np.arange(len(wp)), cmap="viridis", s=70,
+                   edgecolor="k", lw=.4, zorder=3)
+    ax.scatter(*tx[:2], c="tab:red", s=240, marker="^", edgecolor="k", zorder=4,
+               label=_T("gNB 송신 (조명)", "gNB Tx (illuminator)"))
+    ax.scatter(*rx[:2], c="tab:blue", s=240, marker="v", edgecolor="k", zorder=4,
+               label=_T("수동 수신 Rx", "passive Rx"))
+    ax.scatter(d[0], d[1], c="lime", s=150, marker="*", edgecolor="k", zorder=5,
+               label=_T("드론 (showcase)", "drone (showcase)"))
+    ax.annotate(_T(f"R_b={snap['R_b_gt']:.0f} m\nV_b={snap['V_b_gt']:+.1f} m/s",
+                   f"R_b={snap['R_b_gt']:.0f} m\nV_b={snap['V_b_gt']:+.1f} m/s"),
+                (d[0], d[1]), fontsize=8.5, fontweight="bold",
+                xytext=(8, 8), textcoords="offset points")
+    ax.set_xlabel("x [m]"); ax.set_ylabel("y [m]"); ax.set_aspect("equal", "datalim")
+    ax.grid(alpha=.3); ax.legend(fontsize=8, loc="lower right")
+    return s
+
+
+def _traj_panel(ax, val, key_gt, key_det, ylab):
+    from matplotlib.lines import Line2D
+    ax.plot([t["i"] for t in val], [t[key_gt] for t in val], "-o", color="k", zorder=2, ms=5)
+    for t in val:
+        ax.scatter(t["i"], t[key_det], c=("lime" if t["hit"] else "red"), s=85,
+                   edgecolor="k", zorder=3)
+    ax.set_ylabel(ylab); ax.set_xlabel(_T("비행 waypoint 번호", "flight waypoint #"))
+    ax.grid(alpha=.3)
+    return [Line2D([], [], marker="o", color="k", label=_T("Sionna 정답(GT)", "Sionna GT")),
+            Line2D([], [], marker="o", ls="", mfc="lime", mec="k", label=_T("검출", "detected")),
+            Line2D([], [], marker="o", ls="", mfc="red", mec="k", label=_T("놓침", "missed"))]
+
+
+def _entropy_bars(ax, ed, *, mini=False):
+    fr = np.arange(len(ed["entropy"]))
+    ent = np.array(ed["entropy"]); keep = np.array(ed["keep"], bool)
+    ax.bar(fr[keep], ent[keep], color="tab:green", label=_T("선택(밀집)", "kept (dense)"))
+    ax.bar(fr[~keep], ent[~keep], color="tab:red", alpha=.7, label=_T("버림(희소)", "dropped (sparse)"))
+    ax.axhline(ed["threshold"], color="k", ls="--", lw=1.3,
+               label=_T(f"임계 0.95·max ({ed['threshold']:.1f})", f"thr 0.95·max ({ed['threshold']:.1f})"))
+    for j in (ed["i_dense"], ed["i_sparse"]):
+        ax.plot(j, ent[j], "*", color="gold", ms=15, mec="k", zorder=5)
+    if not mini:
+        ax.annotate(_T("→ CAF(선택)", "→ CAF (kept)"), (ed["i_dense"], ent[ed["i_dense"]]),
+                    fontsize=8, ha="center", xytext=(0, 8), textcoords="offset points")
+        ax.annotate(_T("→ CAF(버림)", "→ CAF (dropped)"), (ed["i_sparse"], ent[ed["i_sparse"]]),
+                    fontsize=8, ha="center", xytext=(0, -14), textcoords="offset points")
+        axt = ax.twinx()
+        axt.plot(fr, 100 * np.array(ed["fills"]), "o-", color="0.5", ms=4, alpha=.7)
+        axt.set_ylabel(_T("프레임 점유율 [%]", "frame fill [%]"), color="0.5"); axt.set_ylim(0, 105)
+    ax.set_ylim(ent.min() - 0.8, ent.max() + 0.5)
+    ax.set_xlabel(_T(f"프레임 번호 (각 {ed['t_frame_ms']:.0f} ms)", f"frame # ({ed['t_frame_ms']:.0f} ms)"))
+    ax.set_ylabel(_T("Rényi 엔트로피", "Rényi entropy"))
+    ax.legend(fontsize=8, loc="lower left")
+
+
+def _vcut(ax, lo, hi):
+    for r, col in ((lo, "tab:orange"), (hi, "tab:blue")):
+        ax.plot(r["va"], r["rd_db"][r["ri"], :], color=col, lw=2,
+                label=_T(f"{r['t_int_ms']:.0f} ms  (-3dB {r['v_width']:.1f} m/s)",
+                         f"{r['t_int_ms']:.0f} ms  (-3dB {r['v_width']:.1f} m/s)"))
+    ax.axvline(hi["V_b_gt"], color="k", ls="--", lw=1, alpha=.6, label=_T("정답 V_b", "GT V_b"))
+    ax.set_xlim(hi["V_b_gt"] - 22, hi["V_b_gt"] + 22); ax.set_ylim(-30, 2)
+    ax.set_xlabel("V_b [m/s]"); ax.set_ylabel(_T("상대 전력 [dB]", "rel. power [dB]"))
+    ax.legend(fontsize=8.5); ax.grid(alpha=.3)
+
+
+def _rd_panel(ax, plt, r, title, *, show_cfar=False, vzoom=60, cbar=True, status=None):
+    """Range-Doppler panel: dB map [range, doppler], GT marker, optional CFAR + a
+    value callout box (R_b / V_b / SCR)."""
+    va, ra, rd = r["va"], r["ra"], r["rd_db"]
+    im = ax.pcolormesh(va, ra, rd, shading="auto", cmap="turbo", vmin=-25, vmax=0)
+    ax.plot(r["V_b_gt"], r["R_b_gt"], "x", color="lime", ms=14, mew=3.2,
+            label=_T("Sionna 정답(GT)", "Sionna GT"))
+    if show_cfar and "det" in r:
+        dv, dr = np.where(r["det"])
+        if len(dv):
+            ax.scatter(va[dr], ra[dv], s=20, facecolors="none", edgecolors="white",
+                       linewidths=1.0, label=_T("CFAR 검출", "CFAR hit"))
+    ax.set_xlim(r["V_b_gt"] - vzoom, r["V_b_gt"] + vzoom)
+    ax.set_ylim(min(150, ra.max()), 0)
+    ax.set_xlabel("V_b [m/s]"); ax.set_ylabel("R_b [m]"); ax.set_title(title, fontsize=11)
+    ax.legend(fontsize=8.5, loc="upper right")
+    txt = f"R_b={r['R_b_gt']:.0f} m\nV_b={r['V_b_gt']:+.1f} m/s\nSCR={r['scr_db']:.0f} dB"
+    if status:
+        txt += f"\n{status}"
+    ax.text(0.03, 0.04, txt, transform=ax.transAxes, fontsize=9, va="bottom", ha="left",
+            bbox=dict(boxstyle="round", fc="white", alpha=.78, ec="0.6"))
+    if cbar:
+        plt.colorbar(im, ax=ax, shrink=.85, label=_T("상대 전력 [dB]", "rel. power [dB]"))
+    return im
+
+
 def make_figures(results: dict, outdir: str):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    _setup_style(plt)
     paths = {}
+    g = results["geometry"]; s = results["snapshot"]; gate = results["gate"]
+    traj = results["trajectory"]; val = [t for t in traj if t.get("valid", True)]
+    lo, hi = results["tint"]["lo"], results["tint"]["hi"]; ed = results["entropy_demo"]
 
-    # -- D1: 3D bistatic scene + flight trajectory (paper Fig 18) ----------------
-    g = results["geometry"]
-    tx, rx = np.array(g["tx"]), np.array(g["rx"])
-    wp = np.array(g["waypoints"])
-    fig = plt.figure(figsize=(8.5, 6.4)); ax = fig.add_subplot(111, projection="3d")
+    # -- D0: one-page OVERVIEW dashboard (the whole story at a glance) -----------
+    fig = plt.figure(figsize=(17, 9.6), constrained_layout=True)
+    gs = fig.add_gridspec(2, 3)
+    sc = _geom2d(fig.add_subplot(gs[0, 0]), g, s)
+    fig.axes[-1].set_title(_T("① 장면·비행 궤적 (평면도)", "① scene & flight (top view)"))
+    axb = fig.add_subplot(gs[0, 1])
+    _rd_panel(axb, plt, s, _T("② 거리-도플러 + CFAR 검출", "② range-Doppler + CFAR"),
+              show_cfar=True, vzoom=45, status=_T("✓ 검출", "✓ detected"))
+    _entropy_bars(fig.add_subplot(gs[0, 2]), ed)
+    fig.axes[-2].set_title(_T("③ Rényi 엔트로피 프레임 선택", "③ Rényi frame selection"))
+    leg = _traj_panel(fig.add_subplot(gs[1, 0]), val, "R_b_gt", "R_b_det",
+                      _T("거리 R_b [m]", "range R_b [m]"))
+    fig.axes[-1].set_title(_T("④ 거리: 검출 vs 정답", "④ range: detection vs GT"))
+    fig.axes[-1].legend(handles=leg, fontsize=8, loc="best")
+    _traj_panel(fig.add_subplot(gs[1, 1]), val, "V_b_gt", "V_b_det",
+                _T("속도 V_b [m/s]", "velocity V_b [m/s]"))
+    fig.axes[-1].set_title(_T("⑤ 속도: 검출 vs 정답", "⑤ velocity: detection vs GT"))
+    _vcut(fig.add_subplot(gs[1, 2]), lo, hi)
+    fig.axes[-1].set_title(_T("⑥ 적분시간 20→100 ms 속도 선명화", "⑥ T_int 20→100 ms sharpening"))
+    head = _T(
+        f"Phase D — 5G 수동 레이더 실비행 드론 검출 (Sionna RT)    │    GATE "
+        f"{'✓ 통과' if gate['gate_pass'] else '✗ 실패'}",
+        f"Phase D — real-flight bistatic drone detection (Sionna RT)    │    GATE "
+        f"{'✓ PASS' if gate['gate_pass'] else '✗ FAIL'}")
+    fig.suptitle(head, fontsize=16, fontweight="bold")
+    note = _T(
+        f"검출 {gate['hit_rate']*100:.0f}% ({gate.get('hit_rate',0)*len(val):.0f}/{len(val)} waypoint) · "
+        f"거리오차(중앙값) {gate['median_R_err_m']} m · 속도오차 {gate['median_V_err_ms']} m/s · "
+        f"속도해상도 ΔV {gate['vres_lo_ms']}→{gate['vres_hi_ms']} m/s (20→100 ms) · "
+        f"밀집프레임 검출 / 희소프레임 매몰 · RT {results.get('elapsed_s','?')} s",
+        f"hit-rate {gate['hit_rate']*100:.0f}% · median R err {gate['median_R_err_m']} m · "
+        f"V err {gate['median_V_err_ms']} m/s · ΔV {gate['vres_lo_ms']}→{gate['vres_hi_ms']} m/s")
+    fig.text(0.5, -0.012, note, ha="center", fontsize=11,
+             bbox=dict(boxstyle="round", fc="#eef6ff", ec="0.6"))
+    p0 = os.path.join(outdir, "phaseD_overview.png")
+    fig.savefig(p0, bbox_inches="tight"); plt.close(fig); paths["overview"] = p0
+
+    # -- D1: bistatic scene — 3D + 2D top-down (paper Fig 18) --------------------
+    wp = np.array(g["waypoints"]); tx, rx = np.array(g["tx"]), np.array(g["rx"])
+    fig = plt.figure(figsize=(14, 5.8))
+    ax3 = fig.add_subplot(1, 2, 1, projection="3d")
     xx, yy = np.meshgrid(np.linspace(-70, 70, 2), np.linspace(-10, 80, 2))
-    ax.plot_surface(xx, yy, np.zeros_like(xx), alpha=0.10, color="gray")
-    ax.scatter(*tx, c="tab:red", s=120, marker="^", label="gNB Tx (illuminator)")
-    ax.scatter(*rx, c="tab:blue", s=120, marker="v", label="surveillance Rx")
-    ax.plot([tx[0], rx[0]], [tx[1], rx[1]], [tx[2], rx[2]], "k--", lw=1, alpha=.6,
-            label="baseline L")
-    sc = ax.scatter(wp[:, 0], wp[:, 1], wp[:, 2], c=np.arange(len(wp)), cmap="viridis",
-                    s=55, label="drone flight")
-    ax.plot(wp[:, 0], wp[:, 1], wp[:, 2], "-", color="green", lw=1.2, alpha=.5)
-    mid = wp[len(wp) // 2]
-    for p, col in ((tx, "tab:red"), (rx, "tab:blue")):
-        ax.plot([p[0], mid[0]], [p[1], mid[1]], [p[2], mid[2]], ":", color=col, lw=1, alpha=.7)
-    ax.set_xlabel("x [m]"); ax.set_ylabel("y [m]"); ax.set_zlabel("z [m]")
-    ax.set_title("Phase D / Fig 18 — bistatic 5G-PCL scene (Sionna RT)\n"
-                 "gNB illuminates, passive Rx, drone flies a trajectory")
-    ax.legend(loc="upper left", fontsize=8); ax.view_init(elev=22, azim=-60)
-    fig.colorbar(sc, ax=ax, shrink=.5, pad=.1, label="waypoint #")
+    ax3.plot_surface(xx, yy, np.zeros_like(xx), alpha=0.10, color="gray")
+    ax3.scatter(*tx, c="tab:red", s=130, marker="^", label=_T("gNB 송신", "gNB Tx"))
+    ax3.scatter(*rx, c="tab:blue", s=130, marker="v", label=_T("수동 Rx", "passive Rx"))
+    ax3.plot([tx[0], rx[0]], [tx[1], rx[1]], [tx[2], rx[2]], "k--", lw=1, alpha=.6)
+    ax3.scatter(wp[:, 0], wp[:, 1], wp[:, 2], c=np.arange(len(wp)), cmap="viridis", s=55,
+                label=_T("드론 비행", "drone flight"))
+    ax3.plot(wp[:, 0], wp[:, 1], wp[:, 2], "-", color="green", lw=1.2, alpha=.5)
+    ax3.set_xlabel("x [m]"); ax3.set_ylabel("y [m]"); ax3.set_zlabel("z [m]")
+    ax3.set_title(_T("입체도 (3D)", "3D view")); ax3.legend(fontsize=8.5, loc="upper left")
+    ax3.view_init(elev=22, azim=-60)
+    s2 = _geom2d(fig.add_subplot(1, 2, 2), g, s)
+    fig.axes[-1].set_title(_T("평면도 (위에서 본 x-y)", "top-down (x-y)"))
+    fig.colorbar(s2, ax=fig.axes[-1], shrink=.8, label=_T("waypoint 번호", "waypoint #"))
+    fig.suptitle(_T("Phase D / Fig 18 — bistatic 5G 수동레이더 장면 (Sionna RT)",
+                    "Phase D / Fig 18 — bistatic 5G-PCL scene (Sionna RT)"),
+                 fontsize=14, fontweight="bold")
     fig.tight_layout(); p1 = os.path.join(outdir, "phaseD_geometry.png")
-    fig.savefig(p1, dpi=130); plt.close(fig); paths["geometry"] = p1
+    fig.savefig(p1); plt.close(fig); paths["geometry"] = p1
 
     # -- D2: ray-traced channel (CIR + per-path delay/Doppler) (paper Fig 20) ----
-    s = results["snapshot"]
-    fig, ax = plt.subplots(1, 2, figsize=(13, 4.4))
+    fig, ax = plt.subplots(1, 2, figsize=(13.5, 4.6))
     hdb = 20 * np.log10(s["h_abs"] + 1e-12); hdb -= hdb.max()
-    ax[0].plot(s["tap_range"], hdb, color="tab:purple")
     dt = s["drone_tap"]
-    ax[0].axvline(s["tap_range"][0], color="k", ls="--", lw=1, alpha=.6, label="direct path (tap 0)")
-    ax[0].plot(s["tap_range"][dt], hdb[dt], "x", color="lime", ms=12, mew=3,
-               label=f"drone tap @ {s['R_b_gt']:.0f} m")
-    ax[0].set_xlim(0, min(150, s["tap_range"][-1])); ax[0].set_ylim(-60, 2)
-    ax[0].set_xlabel("bistatic range [m]"); ax[0].set_ylabel("|h| [dB]")
-    ax[0].set_title("Sionna-RT channel impulse response (slow-time mean)")
-    ax[0].legend(fontsize=8); ax[0].grid(alpha=.3)
+    ax[0].plot(s["tap_range"], hdb, color="tab:purple", lw=1.6)
+    ax[0].axvline(s["tap_range"][0], color="k", ls="--", lw=1, alpha=.6,
+                  label=_T("직접파 (tap 0, 클러터)", "direct path (tap 0)"))
+    ax[0].plot(s["tap_range"][dt], hdb[dt], "x", color="lime", ms=14, mew=3.2,
+               label=_T(f"드론 echo @ {s['R_b_gt']:.0f} m", f"drone tap @ {s['R_b_gt']:.0f} m"))
+    ax[0].annotate(_T(f"드론은 직접파보다\n~{abs(hdb[dt]):.0f} dB 아래\n→ 클러터 제거 필요",
+                      f"~{abs(hdb[dt]):.0f} dB below\ndirect path\n→ clutter cancel"),
+                   (s["tap_range"][dt], hdb[dt]), fontsize=8.5, xytext=(18, 12),
+                   textcoords="offset points",
+                   arrowprops=dict(arrowstyle="->", color="0.4"))
+    ax[0].set_xlim(0, min(150, s["tap_range"][-1])); ax[0].set_ylim(-60, 4)
+    ax[0].set_xlabel(_T("양기지 거리 [m]", "bistatic range [m]")); ax[0].set_ylabel("|h| [dB]")
+    ax[0].set_title(_T("광선추적 채널 임펄스응답", "RT channel impulse response"))
+    ax[0].legend(fontsize=8.5); ax[0].grid(alpha=.3)
     tau = np.array(s["paths_tau_ns"]); dop = np.array(s["paths_dop_hz"])
-    ax[1].scatter(tau, dop, c="tab:gray", s=40)
     di = int(np.argmax(np.abs(dop)))
-    ax[1].scatter(tau[di], dop[di], c="lime", s=120, marker="*",
-                  edgecolor="k", label="drone path (max |f_D|)", zorder=5)
+    ax[1].scatter(tau, dop, c="0.55", s=70, label=_T("정지 경로 (직접·지면)", "static (direct/ground)"))
+    ax[1].scatter(tau[di], dop[di], c="lime", s=180, marker="*", edgecolor="k", zorder=5,
+                  label=_T("드론 경로 (max |f_D|)", "drone path (max |f_D|)"))
     ax[1].axhline(0, color="k", lw=.8, alpha=.5)
-    ax[1].set_xlabel("path delay [ns]"); ax[1].set_ylabel("path Doppler [Hz]")
-    ax[1].set_title("Ray-traced multipath: delay vs Doppler"); ax[1].legend(fontsize=8)
-    ax[1].grid(alpha=.3)
-    fig.suptitle("Phase D / Fig 20 — real bistatic channel (vs the analytic echo of Phases A-C)")
+    ax[1].set_xlabel(_T("경로 지연 [ns]", "path delay [ns]"))
+    ax[1].set_ylabel(_T("경로 도플러 [Hz]", "path Doppler [Hz]"))
+    ax[1].set_title(_T("광선추적 다중경로: 지연 vs 도플러", "ray-traced multipath: delay vs Doppler"))
+    ax[1].legend(fontsize=8.5); ax[1].grid(alpha=.3)
+    fig.suptitle(_T("Phase D / Fig 20 — 실제 양기지 채널 (A-C의 해석적 echo 대체)",
+                    "Phase D / Fig 20 — real bistatic channel (vs analytic echo of A-C)"),
+                 fontsize=14, fontweight="bold")
     fig.tight_layout(); p2 = os.path.join(outdir, "phaseD_channel.png")
-    fig.savefig(p2, dpi=130); plt.close(fig); paths["channel"] = p2
+    fig.savefig(p2); plt.close(fig); paths["channel"] = p2
 
-    # -- D3: snapshot range-Doppler + CFAR detection on the RT echo (Fig 8/21) ---
-    fig, ax = plt.subplots(figsize=(7.4, 5.6))
-    _rd_panel(ax, plt, s, "Phase D / Fig 21 — RT bistatic RD + CA-CFAR",
-              show_cfar=True)
+    # -- D3: snapshot range-Doppler + CFAR on the RT echo (paper Fig 21) ---------
+    fig, ax = plt.subplots(figsize=(7.8, 6.0))
+    _rd_panel(ax, plt, s, _T(f"Phase D / Fig 21 — 광선추적 RD + CA-CFAR (waypoint {s.get('wp','?')})",
+                             "Phase D / Fig 21 — RT bistatic RD + CA-CFAR"),
+              show_cfar=True, status=_T("✓ 검출 성공", "✓ detected"))
     fig.tight_layout(); p3 = os.path.join(outdir, "phaseD_snapshot_rd.png")
-    fig.savefig(p3, dpi=130); plt.close(fig); paths["snapshot_rd"] = p3
+    fig.savefig(p3); plt.close(fig); paths["snapshot_rd"] = p3
 
     # -- D4: flight trajectory — detections vs Sionna GT (paper Fig 23) ----------
-    traj = results["trajectory"]
-    val = [t for t in traj if t.get("valid", True)]
-    from matplotlib.lines import Line2D
-    fig, ax = plt.subplots(2, 1, figsize=(8.5, 7), sharex=True)
-    for a, key_gt, key_det, ylab in ((ax[0], "R_b_gt", "R_b_det", "bistatic range R_b [m]"),
-                                     (ax[1], "V_b_gt", "V_b_det", "bistatic velocity V_b [m/s]")):
-        a.plot([t["i"] for t in val], [t[key_gt] for t in val], "-o", color="k", zorder=2)
-        for t in val:
-            c = "lime" if t["hit"] else "red"
-            a.scatter(t["i"], t[key_det], c=c, s=70, edgecolor="k", zorder=3)
-        a.set_ylabel(ylab); a.grid(alpha=.3)
-    ax[0].set_title("Phase D / Fig 23 — CFAR detections follow the exact Sionna GT trajectory")
-    ax[1].set_xlabel("flight waypoint #")
-    leg = [Line2D([], [], marker="o", color="k", label="Sionna GT"),
-           Line2D([], [], marker="o", ls="", mfc="lime", mec="k", label="detected (hit)"),
-           Line2D([], [], marker="o", ls="", mfc="red", mec="k", label="missed")]
-    ax[0].legend(handles=leg, fontsize=8, loc="best")
-    fig.tight_layout(); p4 = os.path.join(outdir, "phaseD_trajectory.png")
-    fig.savefig(p4, dpi=130); plt.close(fig); paths["trajectory"] = p4
+    fig, ax = plt.subplots(2, 1, figsize=(9, 7.4), sharex=True)
+    leg = _traj_panel(ax[0], val, "R_b_gt", "R_b_det", _T("양기지 거리 R_b [m]", "bistatic range R_b [m]"))
+    _traj_panel(ax[1], val, "V_b_gt", "V_b_det", _T("양기지 속도 V_b [m/s]", "bistatic velocity V_b [m/s]"))
+    ax[0].legend(handles=leg, fontsize=9, loc="best")
+    ax[0].set_title(_T(f"Phase D / Fig 23 — CFAR 검출이 Sionna 정답 궤적을 추적 "
+                       f"(검출 {sum(t['hit'] for t in val)}/{len(val)}, "
+                       f"오차 {gate['median_R_err_m']} m / {gate['median_V_err_ms']} m/s)",
+                       "Phase D / Fig 23 — CFAR detections follow the exact Sionna GT"),
+                   fontsize=12.5, fontweight="bold")
+    ax[0].set_xlabel(""); fig.tight_layout()
+    p4 = os.path.join(outdir, "phaseD_trajectory.png")
+    fig.savefig(p4); plt.close(fig); paths["trajectory"] = p4
 
     # -- D5: T_int 20 ms vs 100 ms — velocity sharpening (paper Fig 21 -> 22) ----
-    lo, hi = results["tint"]["lo"], results["tint"]["hi"]
-    fig = plt.figure(figsize=(14, 5.0))
-    axA = fig.add_subplot(1, 3, 1); _rd_panel(axA, plt, lo,
-        f"T_int = {lo['t_int_ms']:.0f} ms  (ΔV={lo['vres']:.1f} m/s)", vzoom=40)
-    axB = fig.add_subplot(1, 3, 2); _rd_panel(axB, plt, hi,
-        f"T_int = {hi['t_int_ms']:.0f} ms  (ΔV={hi['vres']:.2f} m/s)", vzoom=40)
-    axC = fig.add_subplot(1, 3, 3)
-    for r, lab, col in ((lo, f"{lo['t_int_ms']:.0f} ms", "tab:orange"),
-                        (hi, f"{hi['t_int_ms']:.0f} ms", "tab:blue")):
-        vc = r["rd_db"][r["ri"], :]
-        axC.plot(r["va"], vc, color=col, label=f"{lab}  (-3dB: {r['v_width']:.1f} m/s)")
-    axC.axvline(hi["V_b_gt"], color="k", ls="--", lw=1, alpha=.6, label="GT V_b")
-    axC.set_xlim(hi["V_b_gt"] - 25, hi["V_b_gt"] + 25); axC.set_ylim(-30, 2)
-    axC.set_xlabel("V_b [m/s]"); axC.set_ylabel("rel. power [dB]")
-    axC.set_title("velocity cut through the peak"); axC.legend(fontsize=8); axC.grid(alpha=.3)
-    fig.suptitle("Phase D / Fig 21→22 — longer integration sharpens the velocity estimate")
+    fig = plt.figure(figsize=(15, 5.2))
+    _rd_panel(fig.add_subplot(1, 3, 1), plt, lo,
+              _T(f"T_int = {lo['t_int_ms']:.0f} ms  (ΔV={lo['vres']:.1f} m/s)",
+                 f"T_int = {lo['t_int_ms']:.0f} ms  (ΔV={lo['vres']:.1f} m/s)"), vzoom=40)
+    _rd_panel(fig.add_subplot(1, 3, 2), plt, hi,
+              _T(f"T_int = {hi['t_int_ms']:.0f} ms  (ΔV={hi['vres']:.2f} m/s)",
+                 f"T_int = {hi['t_int_ms']:.0f} ms  (ΔV={hi['vres']:.2f} m/s)"), vzoom=40)
+    axc = fig.add_subplot(1, 3, 3); _vcut(axc, lo, hi)
+    axc.set_title(_T("피크 단면 (속도 방향)", "velocity cut through the peak"))
+    fig.suptitle(_T("Phase D / Fig 21→22 — 긴 적분시간이 속도 추정을 선명하게",
+                    "Phase D / Fig 21→22 — longer integration sharpens velocity"),
+                 fontsize=14, fontweight="bold")
     fig.tight_layout(); p5 = os.path.join(outdir, "phaseD_tint.png")
-    fig.savefig(p5, dpi=130); plt.close(fig); paths["tint"] = p5
+    fig.savefig(p5); plt.close(fig); paths["tint"] = p5
 
     # -- D6: Renyi adaptive integration on the real capture (paper Fig 24) -------
-    ed = results["entropy_demo"]
-    fig = plt.figure(figsize=(14, 4.6))
-    axE = fig.add_subplot(1, 3, 1)
-    fr = np.arange(len(ed["entropy"]))
-    ent = np.array(ed["entropy"]); keep = np.array(ed["keep"], bool)
-    axE.bar(fr[keep], ent[keep], color="tab:green", label="kept (dense)")
-    axE.bar(fr[~keep], ent[~keep], color="tab:red", alpha=.7, label="dropped (sparse)")
-    axE.axhline(ed["threshold"], color="k", ls="--", lw=1.2,
-                label=f"threshold = 0.95·max ({ed['threshold']:.1f})")
-    # mark the two frames the selector actually feeds to the CAF (right panels)
-    for j, lab in ((ed["i_dense"], "→ CAF (kept)"), (ed["i_sparse"], "→ CAF (dropped)")):
-        axE.annotate(lab, (j, ent[j]), fontsize=6.5, ha="center",
-                     xytext=(0, 6 if j == ed["i_dense"] else -12), textcoords="offset points")
-        axE.plot(j, ent[j], "*", color="gold", ms=13, mec="k", zorder=5)
-    axE.set_ylim(ent.min() - 0.8, ent.max() + 0.4)           # zoom so the split is visible
-    axt = axE.twinx()
-    axt.plot(fr, 100 * np.array(ed["fills"]), "o-", color="tab:gray", ms=4, alpha=.7)
-    axt.set_ylabel("frame fill [%]", color="tab:gray"); axt.set_ylim(0, 105)
-    axE.set_xlabel(f"frame # ({ed['t_frame_ms']:.0f} ms each)")
-    axE.set_ylabel("Rényi entropy"); axE.set_title("per-frame entropy → adaptive selection (Fig 24)")
-    axE.legend(fontsize=7, loc="lower left")
-    axD = fig.add_subplot(1, 3, 2); _rd_panel(axD, plt, ed["dense"],
-        f"KEPT frame (fill {ed['rho_dense']:.0%}, H={ed['H_dense']:.1f})\nSCR={ed['dense']['scr_db']:.1f} dB → detected",
-        show_cfar=True, vzoom=40)
-    axS = fig.add_subplot(1, 3, 3); _rd_panel(axS, plt, ed["sparse"],
-        f"DROPPED frame (fill {ed['rho_sparse']:.0%}, H={ed['H_sparse']:.1f})\nSCR={ed['sparse']['scr_db']:.1f} dB → buried",
-        show_cfar=True, vzoom=40)
-    fig.suptitle("Phase D / Fig 24 — Rényi entropy selects dense frames: same RT channel, the "
-                 "kept (dense) frame detects where the dropped (sparse) frame is buried")
+    fig = plt.figure(figsize=(15, 4.9))
+    _entropy_bars(fig.add_subplot(1, 3, 1), ed)
+    fig.axes[-2].set_title(_T("프레임별 엔트로피 → 적응 선택", "per-frame entropy → selection"))
+    _rd_panel(fig.add_subplot(1, 3, 2), plt, ed["dense"],
+              _T(f"선택된 밀집 프레임 (점유 {ed['rho_dense']:.0%}, H={ed['H_dense']:.1f})",
+                 f"KEPT dense frame (fill {ed['rho_dense']:.0%}, H={ed['H_dense']:.1f})"),
+              show_cfar=True, vzoom=40, status=_T("✓ 검출", "✓ detected"))
+    _rd_panel(fig.add_subplot(1, 3, 3), plt, ed["sparse"],
+              _T(f"버려진 희소 프레임 (점유 {ed['rho_sparse']:.0%}, H={ed['H_sparse']:.1f})",
+                 f"DROPPED sparse frame (fill {ed['rho_sparse']:.0%}, H={ed['H_sparse']:.1f})"),
+              show_cfar=True, vzoom=40, status=_T("✗ 매몰", "✗ buried"))
+    fig.suptitle(_T("Phase D / Fig 24 — Rényi 엔트로피로 밀집 프레임 선택: 같은 채널에서 "
+                    "선택 프레임은 검출, 버린 프레임은 매몰",
+                    "Phase D / Fig 24 — Rényi selects dense frames: kept detects, dropped is buried"),
+                 fontsize=13.5, fontweight="bold")
     fig.tight_layout(); p6 = os.path.join(outdir, "phaseD_entropy.png")
-    fig.savefig(p6, dpi=130); plt.close(fig); paths["entropy"] = p6
+    fig.savefig(p6); plt.close(fig); paths["entropy"] = p6
     return paths
-
-
-def _rd_panel(ax, plt, r, title, *, show_cfar=False, vzoom=60):
-    """Shared range-Doppler panel: dB map [range, doppler], GT marker, optional CFAR."""
-    va, ra, rd = r["va"], r["ra"], r["rd_db"]
-    im = ax.pcolormesh(va, ra, rd, shading="auto", cmap="turbo", vmin=-25, vmax=0)
-    ax.plot(r["V_b_gt"], r["R_b_gt"], "x", color="lime", ms=12, mew=3, label="Sionna GT")
-    if show_cfar and "det" in r:
-        dv, dr = np.where(r["det"])
-        if len(dv):
-            ax.scatter(va[dr], ra[dv], s=14, facecolors="none", edgecolors="white",
-                       linewidths=.8, label="CFAR hit")
-    ax.set_xlim(r["V_b_gt"] - vzoom, r["V_b_gt"] + vzoom)
-    ax.set_ylim(min(150, ra.max()), 0)
-    ax.set_xlabel("V_b [m/s]"); ax.set_ylabel("R_b [m]"); ax.set_title(title, fontsize=9)
-    ax.legend(fontsize=7, loc="upper right")
-    plt.colorbar(im, ax=ax, shrink=.85, label="rel. power [dB]")
 
 
 if __name__ == "__main__":
