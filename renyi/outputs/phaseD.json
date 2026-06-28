@@ -1,0 +1,7 @@
+{
+  "phase": "D",
+  "gate_pass": null,
+  "sionna_available": false,
+  "status": "scaffold -- implement bistatic_scene.flight_caf() on the server",
+  "plan": "Phase D reuses the parent bistatic Sionna-RT scene (bistatic_scene.py / ../passive_radar_stage1.build_scene) to generate a real drone echo, runs the same CAF+CA-CFAR with Renyi-entropy frame selection over a flight trajectory, and overlays CFAR detections on Sionna's exact GT (paper Fig 21-23: T_int 20->100 ms). Requires sionna-rt + OptiX on the RTX-4090 server."
+}

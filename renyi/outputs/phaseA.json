@@ -1,0 +1,49 @@
+{
+  "phase": "A",
+  "gate_pass": true,
+  "note": "CAF target SCR rises with content fill (more occupied REs -> more echo energy / integration gain); low-content buried, high-content detected (Fig 8). Power-vs-content decoupling is quantified in Phase B.",
+  "R_b_m": 71.6,
+  "V_b_ms": 21.22,
+  "sweep": [
+    {
+      "fill": 0.05,
+      "density": 0.102,
+      "scr_db": 10.38,
+      "power_dbm": -15.11,
+      "entropy": 16.311,
+      "detected": false
+    },
+    {
+      "fill": 0.1,
+      "density": 0.149,
+      "scr_db": 10.2,
+      "power_dbm": -13.45,
+      "entropy": 16.929,
+      "detected": false
+    },
+    {
+      "fill": 0.3,
+      "density": 0.337,
+      "scr_db": 12.57,
+      "power_dbm": -9.9,
+      "entropy": 18.033,
+      "detected": true
+    },
+    {
+      "fill": 0.7,
+      "density": 0.72,
+      "scr_db": 18.27,
+      "power_dbm": -6.61,
+      "entropy": 18.857,
+      "detected": true
+    },
+    {
+      "fill": 1.0,
+      "density": 1.0,
+      "scr_db": 18.96,
+      "power_dbm": -5.18,
+      "entropy": 19.12,
+      "detected": true
+    }
+  ]
+}
