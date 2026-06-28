@@ -67,6 +67,19 @@ flight) swaps in a Sionna-RT bistatic channel.
    parent `drones` literature dBsm anchors (labelled estimate, `../NOTES.md` fix #4).
 8. **No tracking/Kalman.** The paper did **not** implement tracking (single receiver,
    Sec 2 end); Phase D overlays raw detections on GT (Fig 23) — faithful to that.
+9. **Phase D specifics (honest).** The flight is a steady drone (constant velocity vector;
+   the bistatic R_b/V_b GT varies through geometry as it moves) ray-traced per waypoint;
+   2e6 rays/src so the small (0.3 m) metal-cube drone is reliably found. The adaptive-
+   integration figure (Fig 24) demonstrates *why* dense frames are selected: per-frame
+   Rényi entropy gates a bimodal-traffic capture at **0.95·max** (cleanly between the
+   sparse band H/max≈0.85–0.91 and the dense band ≈0.99–1.0, in the paper's 0.993·max
+   spirit), and the two RD panels are the selector's **own** highest-entropy-kept and
+   lowest-entropy-dropped frames on the **same** RT channel — the kept (dense) CPI detects
+   where the equal-length dropped (sparse) CPI is buried (absolute noise auto-calibrated so
+   the kept CPI lands ~18 dB SCR) — rather than running a live streaming frame-gate.
+   Ray-traced multipath is real: a double-bounce (drone→ground→Rx)
+   can out-peak the direct drone path at some geometries, so the trajectory plots the CFAR
+   detection nearest the GT (the drone's own return), not the global RD maximum.
 
 ## Status (phase-gated)
 | Phase | What | Gate | Status |
@@ -74,7 +87,7 @@ flight) swaps in a Sionna-RT bistatic channel.
 | **A** | content-dependency: CAF vs fill | low-content buried, high-content clear, SCR↑ (Fig 8) | ✅ PASS — SCR 7.5→19.2 dB over fill; detect ≥30 % only |
 | **B** | entropy vs power & B_eff | H monotonic & SNR-robust; power/B_eff can't separate content (Fig 9/11/13) | ✅ PASS — H 12.7→16.8 monotonic; Δpower 0.02 dB vs Δentropy 0.75 at equal power |
 | **C** | adaptive integration → P_d | P_d↑ with fill, Pfa {1e-4,1e-6,1e-8}; range vs T_int (Fig 14/15-17) | ✅ PASS — P_d S-curve 0→1; Fig 14 verified |
-| **D** | real-flight bistatic (Sionna RT) | detections follow Sionna GT; 20→100 ms sharpens V (Fig 21-23) | ⏳ server |
+| **D** | real-flight bistatic (Sionna RT) | detections follow Sionna GT; 20→100 ms sharpens V (Fig 21-23) | ✅ PASS — 9/9 wp hit, median R err 1.0 m / V err 0.7 m/s; ΔV 4.36→0.87 m/s (20→100 ms); Rényi keeps dense frames (detect) over equal-length sparse (buried) |
 
 Each phase emits a figure mapped to a paper figure + a JSON gate verdict; no phase
 proceeds before its gate passes (visual + numeric proof).

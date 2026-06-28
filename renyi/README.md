@@ -19,8 +19,11 @@ method (CAF + CFAR) reuses the parent benchmark's DSP; the **novelty = the Rény
 entropy frame selector**, implemented fully in `renyi.py`.
 
 ## 👉 먼저 볼 것
-`outputs/phaseA_content.png` · `phaseB_metrics.png` · `phaseC_pd.png` +
-`phase{A,B,C}.json` (gate verdicts). Faithfulness: `docs/FAITHFULNESS.md`.
+`report.ipynb` (all phases, figures embedded — no kernel needed). Or the PNGs:
+`outputs/phaseA_content.png` · `phaseB_metrics.png` · `phaseC_pd.png` ·
+**Phase D**: `phaseD_geometry.png` · `phaseD_trajectory.png` · `phaseD_tint.png` ·
+`phaseD_entropy.png` (+ `phaseD_channel.png` · `phaseD_snapshot_rd.png`) +
+`phase{A,B,C,D}.json` (gate verdicts). Faithfulness: `docs/FAITHFULNESS.md`.
 
 ## Phases (gate must pass before the next)
 | | What | Gate | Status |
@@ -28,7 +31,7 @@ entropy frame selector**, implemented fully in `renyi.py`.
 | **A** | content-dependency: CAF vs content fill | low-content target buried, high-content clear; SCR↑ with fill (Fig 8) | ✅ PASS (local) |
 | **B** | content metrics: entropy vs power & B_eff | H monotonic in fill & SNR-robust; power & B_eff can't separate content (Fig 9/11/13) | ✅ PASS (local) |
 | **C** | adaptive integration → P_d | P_d rises with fill for Pfa {1e-4,1e-6,1e-8}; range vs T_int (Fig 14/15-17) | ✅ PASS (local) |
-| **D** | real-flight bistatic on Sionna RT | CFAR detections follow Sionna GT; T_int 20→100 ms sharpens V (Fig 21-23) | ⏳ server |
+| **D** | real-flight bistatic on Sionna RT | CFAR detections follow Sionna GT; T_int 20→100 ms sharpens V (Fig 21-23) | ✅ PASS (server) — 9/9 wp hit, R err 1.0 m / V err 0.7 m/s; ΔV 4.4→0.9 m/s; dense detects/sparse buried |
 
 ## Run
 ```bash

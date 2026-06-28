@@ -33,7 +33,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from nr_grid import NRGrid, make_reference
-from renyi import renyi_entropy, frame_entropies, calibrate_max, select_frames
+from renyi import renyi_entropy
 from content_metrics import measured_power_dbm, effective_bandwidth
 from radar import Geometry, synth_surveillance, caf, ca_cfar, scr_db, detected, _power
 from range_eq import fig14, RangeParams
@@ -201,23 +201,29 @@ def phase_c(outdir, seed=2, n_trials=20):
 # --------------------------------------------------------------------------- #
 #  Phase D -- real-flight bistatic on Sionna RT (server only)
 # --------------------------------------------------------------------------- #
-def phase_d(outdir, seed=3):
-    try:
-        import sionna  # noqa: F401
-        have_rt = True
-    except Exception:
-        have_rt = False
-    msg = ("Phase D reuses the parent bistatic Sionna-RT scene (bistatic_scene.py / "
-           "../passive_radar_stage1.build_scene) to generate a real drone echo, runs the "
-           "same CAF+CA-CFAR with Renyi-entropy frame selection over a flight trajectory, "
-           "and overlays CFAR detections on Sionna's exact GT (paper Fig 21-23: T_int "
-           "20->100 ms). Requires sionna-rt + OptiX on the RTX-4090 server.")
-    print(msg)
-    if not have_rt:
-        print("\n[!] sionna-rt not importable here -> run Phase D on the server.")
-    _save(dict(phase="D", gate_pass=None, sionna_available=have_rt,
-               status="scaffold -- implement bistatic_scene.flight_caf() on the server",
-               plan=msg), "phaseD", outdir)
+def phase_d(outdir, seed=3, samples_per_src=2_000_000, n_waypoints=9):
+    """Real-flight bistatic detection on a Sionna-RT channel (paper Sec 7, Fig 21-23).
+    Needs sionna-rt + OptiX on the server; emits six figures + a JSON gate."""
+    import bistatic_scene as bs
+    if not bs.have_sionna():
+        msg = ("Phase D reuses the parent bistatic Sionna-RT scene (bistatic_scene.py / "
+               "../passive_radar_stage1.build_scene) for a real drone echo, runs the same "
+               "CAF+CA-CFAR with Renyi-entropy frame selection over a flight trajectory, and "
+               "overlays CFAR detections on Sionna's exact GT (Fig 21-23: T_int 20->100 ms). "
+               "Requires sionna-rt + OptiX on the RTX-4090 server.")
+        print(msg + "\n[!] sionna-rt not importable here -> run Phase D on the server.")
+        _save(dict(phase="D", gate_pass=None, sionna_available=False,
+                   status="scaffold -- run on the server", plan=msg), "phaseD", outdir)
+        return
+    res = bs.flight_caf(seed=seed, samples_per_src=samples_per_src, n_waypoints=n_waypoints)
+    paths = bs.make_figures(res, outdir)
+    g = res["gate"]
+    _save(dict(phase="D", sionna_available=True, elapsed_s=res["elapsed_s"],
+               figures={k: os.path.basename(v) for k, v in paths.items()},
+               cfg=res["cfg"], showcase_wp=res["geometry"]["showcase"],
+               trajectory=[{k: (round(v, 2) if isinstance(v, float) else v)
+                            for k, v in t.items() if k != "pos"} for t in res["trajectory"]],
+               **g), "phaseD", outdir)
 
 
 def main():

@@ -1,7 +1,132 @@
 {
   "phase": "D",
-  "gate_pass": null,
-  "sionna_available": false,
-  "status": "scaffold -- implement bistatic_scene.flight_caf() on the server",
-  "plan": "Phase D reuses the parent bistatic Sionna-RT scene (bistatic_scene.py / ../passive_radar_stage1.build_scene) to generate a real drone echo, runs the same CAF+CA-CFAR with Renyi-entropy frame selection over a flight trajectory, and overlays CFAR detections on Sionna's exact GT (paper Fig 21-23: T_int 20->100 ms). Requires sionna-rt + OptiX on the RTX-4090 server."
+  "sionna_available": true,
+  "elapsed_s": 12.5,
+  "figures": {
+    "geometry": "phaseD_geometry.png",
+    "channel": "phaseD_channel.png",
+    "snapshot_rd": "phaseD_snapshot_rd.png",
+    "trajectory": "phaseD_trajectory.png",
+    "tint": "phaseD_tint.png",
+    "entropy": "phaseD_entropy.png"
+  },
+  "cfg": {
+    "fc_ghz": 3.44,
+    "fs_mhz": 61.44,
+    "M": 8192,
+    "range_res_m": 3.9280982442348007,
+    "t_flight_ms": 40.0
+  },
+  "showcase_wp": 5,
+  "trajectory": [
+    {
+      "i": 0,
+      "R_b_gt": 18.93,
+      "V_b_gt": 10.02,
+      "R_b_det": 19.52,
+      "V_b_det": 10.89,
+      "scr_db": 30.43,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 1,
+      "R_b_gt": 24.31,
+      "V_b_gt": 11.9,
+      "R_b_det": 24.4,
+      "V_b_det": 10.89,
+      "scr_db": 25.62,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 2,
+      "R_b_gt": 30.37,
+      "V_b_gt": 13.81,
+      "R_b_det": 29.28,
+      "V_b_det": 13.07,
+      "scr_db": 19.62,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 3,
+      "R_b_gt": 37.2,
+      "V_b_gt": 15.73,
+      "R_b_det": 39.04,
+      "V_b_det": 15.25,
+      "scr_db": 23.44,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 4,
+      "R_b_gt": 44.2,
+      "V_b_gt": 17.54,
+      "R_b_det": 43.91,
+      "V_b_det": 17.43,
+      "scr_db": 36.49,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 5,
+      "R_b_gt": 51.7,
+      "V_b_gt": 19.26,
+      "R_b_det": 53.67,
+      "V_b_det": 19.61,
+      "scr_db": 38.72,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 6,
+      "R_b_gt": 59.55,
+      "V_b_gt": 21.01,
+      "R_b_det": 58.55,
+      "V_b_det": 21.79,
+      "scr_db": 36.93,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 7,
+      "R_b_gt": 84.9,
+      "V_b_gt": 20.8,
+      "R_b_det": 82.95,
+      "V_b_det": 21.79,
+      "scr_db": 23.52,
+      "hit": true,
+      "valid": true
+    },
+    {
+      "i": 8,
+      "R_b_gt": 92.43,
+      "V_b_gt": 22.36,
+      "R_b_det": 92.71,
+      "V_b_det": 21.79,
+      "scr_db": 31.3,
+      "hit": true,
+      "valid": true
+    }
+  ],
+  "gate_pass": true,
+  "follows_gt": true,
+  "hit_rate": 1.0,
+  "n_valid_wp": 9,
+  "n_wp": 9,
+  "median_R_err_m": 1.0,
+  "median_V_err_ms": 0.74,
+  "tint_sharpens": true,
+  "v_width_lo_ms": 4.36,
+  "v_width_hi_ms": 0.87,
+  "vres_lo_ms": 4.36,
+  "vres_hi_ms": 0.87,
+  "entropy_selector": true,
+  "entropy_clean_split": true,
+  "n_kept": 6,
+  "n_frames": 12,
+  "dense_hit": true,
+  "sparse_hit": false,
+  "note": "Real Sionna-RT bistatic flight: CFAR detections track the exact GT trajectory; 100 ms integration sharpens velocity vs 20 ms (Fig 21->22); Renyi-entropy selection keeps dense frames that detect where equal-length sparse frames are buried (Sec 5.2)."
 }
