@@ -44,21 +44,25 @@ chain.
    strictly better, and the GT axis is satisfied by construction.
 5. **Scope: bulk Doppler only.** No propeller micro-Doppler (LaSen lists it as §8 future
    work too) — matches the parent project's scope.
-6. **Phase B single-target limit.** For a SINGLE target the 2D-OMP first atom equals the
-   2D-FFT peak (they agree on position) — so Phase B demonstrates the **dynamic-range /
-   leakage-floor** advantage (OMP clean sparse RD, PSLR 156 dB, vs the FFT's sub-Nyquist
-   floor 43–49 dB that worsens with sparsity), which is what buries weak targets for a
-   plain FFT. A literal weak-2nd-target demo is confounded by the RT drone's multipath
-   spread (its residual floor > −40 dB hides a faint injected target for OMP too), so it
-   is left to future work (a cleaner point-target or 2 RT drones). Phase B also
-   sub-samples slow-time (256 symbols) so the 2D-OMP is tractable; Phase A already
-   verified the full real-symbol pipeline.
+6. **Phase B uses clean point-target atoms (binary gate).** The faithful LaSen Tab.1/
+   Fig.17 claim is a TWO-target / dynamic-range effect: at sparse occupancy a strong
+   target's sub-Nyquist mask leakage BURIES a weak target for a plain 2D-FFT (binary
+   miss), while 2D-OMP subtracts the strong atom and resolves the weak one. We tried RT
+   movers for both targets but the diffuse-cube multipath spread of the strong target
+   leaves a residual floor that buries the weak one for OMP too (confound). So the two
+   targets are **clean point-target atoms** (a point scatterer's CFR IS an RD atom) at
+   the geometry-derived GT cells; the weak is `rcs_gap_db` below the strong
+   (deterministic, parent fix #4). RT channel fidelity is established in Phase A — Phase
+   B isolates the sparse-recovery DSP. The gate is **binary** (FFT misses / OMP finds —
+   no PSLR proxy), run at the **full real-symbol grid (n_slow=2803)**: an R1 convergence
+   check shows that subsampling to 256 symbols would lose the OMP recovery (a low-gain
+   artifact), so the full grid is used (the R1 rule).
 
 ## Status (phase-gated)
 | Phase | What | Gate | Status |
 |---|---|---|---|
 | **A** | monostatic CFR → full-band 2D-FFT RD | RD peak on analytic GT + 0-Hz clutter collapses (Fig 4); **R1** slow-time = real OFDM symbols; **R2** Doppler sweep follows 2v/λ | ✅ PASS — N=2803 real symbols (PRF 28 kHz, not hardcoded), R 0.2 m / fD 1.1 Hz err, clutter −97 dB, sweep max-err 14 Hz over 4–20 m/s |
-| B | non-uniform occupancy + 2D-OMP (Eq 4-6) | omp2d round-trip + sparse occupancy: 2D-FFT leakage floor worsens, 2D-OMP clean (Tab.1) | ✅ PASS — round-trip OK; OMP recovers target at sparse(3.7%)+dense(16%), OMP PSLR 156 dB vs FFT 43/49 dB (Δ113 dB), FFT leakier when sparser |
+| B | non-uniform occupancy + 2D-OMP (Eq 4-6) | round-trip + **binary** (Fig.17): sparse 2D-FFT MISSES a weak target / 2D-OMP FINDS it; dense FFT finds it | ✅ PASS at FULL n_slow=2803 — strong+weak (−46 dB) targets; sparse(1.2%): FFT-miss(7 dB)/OMP-hit, dense(16%): FFT-hit. R1: 256-subsample loses OMP recovery → full used |
 | C | ID score (Eq 7-9) + hierarchical global/local + Kalman (Eq 10-13) | track follows GT, survives low-score via local+Kalman (Fig 6) | ⏳ |
 | D | metrics RMSE/CE/DR + baselines (2D-OMP, Lerp) | RMSE↓ with density↑/range↓/vel↓; LaSen < baselines (Fig 9, 12-14) | ⏳ |
 

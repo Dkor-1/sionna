@@ -26,9 +26,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from nr_waveform import NRNumerology
-from monostatic_scene import GEOM, trace_cfr
+from monostatic_scene import GEOM, GEOM_STRONG, GEOM_WEAK, trace_cfr, trace_two_targets
 from occupancy import DENSITY_BINS, mask_at_density, density_timeline
-from omp2d import rd_transform, omp2d, roundtrip_ok
+from omp2d import rd_transform, omp2d, roundtrip_ok, atom
+from monostatic_scene import analytic_gt
 import viz
 
 
@@ -205,124 +206,202 @@ def _bins(range_axis, dopp_axis, range_m, dopp_hz):
             int(np.argmin(np.abs(range_axis - range_m))))
 
 
-def phase_b(outdir, num, window_s=0.1, speed=12.0, n_slow=256,
-            densities=("sparse", "dense"), noise_snr_db=0.0, seed=1):
-    """Phase B — non-uniform occupancy + 2D-OMP. From the SAME masked CFR we compare a
-    plain 2D-FFT (range = freq IFFT, doppler = slow-time FFT, with zeros at the
-    untransmitted REs) against 2D-OMP. Both recover the target's PEAK (for a single
-    target OMP's 1st atom == the FFT peak), but the 2D-FFT has a sub-Nyquist LEAKAGE
-    FLOOR that rises as occupancy gets sparser (limited dynamic range), while 2D-OMP
-    fits the masked observation with a sparse model -> a CLEAN RD (huge dynamic range).
-    That dynamic-range deficit is exactly what LaSen's sparse recovery overcomes
-    (Tab.1). GATE: OMP recovers the target at sparse & dense; OMP RD is far cleaner
-    than the FFT (PSLR gap), and the FFT floor measurably worsens from dense->sparse."""
+def finds_target(rd, r_ax, d_ax, gt, notch=20.0, det_db=12.0, guard=2, ring=12):
+    """Local 2-D CFAR detection AT the target's GT cell: peak in a small guard box vs
+    the median floor of a surrounding ring. A weak target near a strong one is DETECTED
+    only if it stands `det_db` above its local floor — when the strong target's
+    sparse-mask leakage raises the floor at the weak cell, the weak is buried (miss).
+    Returns (detected, snr_over_local_floor_db)."""
+    p = np.abs(rd) ** 2
+    di = int(np.argmin(np.abs(d_ax - gt["doppler_hz"])))
+    ri = int(np.argmin(np.abs(r_ax - gt["range_m"])))
+    if abs(d_ax[di]) < notch:
+        return False, -99.0
+    peak = float(p[max(0, di-guard):di+guard+1, max(0, ri-guard):ri+guard+1].max())
+    d0, r0 = max(0, di-ring), max(0, ri-ring)
+    sub = p[d0:di+ring+1, r0:ri+ring+1]
+    m = np.ones(sub.shape, bool)
+    cd, cr = di - d0, ri - r0
+    m[max(0, cd-guard):cd+guard+1, max(0, cr-guard):cr+guard+1] = False    # exclude guard box
+    floor = float(np.median(sub[m]) + 1e-30)
+    snr = float(10 * np.log10(peak / floor))
+    return bool(snr > det_db), snr
+
+
+def omp_finds(support, r_ax, d_ax, gt, tol_r=6.0, tol_d=2):
+    """Does 2D-OMP put a support atom at the (weak) GT cell (±tol)?"""
+    dres = abs(d_ax[1] - d_ax[0])
+    return any(abs(r_ax[ri] - gt["range_m"]) <= tol_r and abs(d_ax[di] - gt["doppler_hz"]) <= tol_d * dres
+               for (di, ri) in support)
+
+
+def _axes(num, Ns, prf):
+    return (np.arange(num.n_active) * num.range_res_m,
+            np.fft.fftshift(np.fft.fftfreq(Ns, d=1.0 / prf)))
+
+
+def _eval_density(num, H, prf, gts, gtw, rho, rng):
+    """One occupancy density: mask -> suppress -> 2D-FFT & 2D-OMP -> weak/strong
+    detection by both methods. Returns everything needed for the gate + figures."""
+    Ns, K = H.shape
+    range_axis, dopp_axis = _axes(num, Ns, prf)
+    W, realised = mask_at_density(Ns, K, rho, rng)
+    rd_fft = rd_transform(np.where(W, H, 0))          # masked CFR (targets are movers)
+    Z, support, hist = omp2d(np.where(W, H, 0), W)
+    fw_on, fw_snr = finds_target(rd_fft, range_axis, dopp_axis, gtw)    # WEAK local detection
+    fs_on, _ = finds_target(rd_fft, range_axis, dopp_axis, gts)         # strong (sanity)
+    return dict(rho=rho, realised=realised, W=W, rd_fft=rd_fft, Z=Z, support=support, hist=hist,
+                fft_weak=fw_on, fft_weak_snr=fw_snr, omp_weak=omp_finds(support, range_axis, dopp_axis, gtw),
+                fft_strong=fs_on, omp_strong=omp_finds(support, range_axis, dopp_axis, gts),
+                n_atoms=len(support))
+
+
+def phase_b(outdir, num, window_s=0.1, n_slow=2803, rcs_gap_db=46.0, noise_snr_db=18.0,
+            rho_sparse=0.012, rho_dense=0.16, r1_check_n=256, seed=1):
+    """Phase B — non-uniform occupancy + 2D-OMP, faithful LaSen Tab.1 / Fig.17 test.
+    A STRONG near drone + a WEAK distant drone (deterministic rcs_gap_db, RT-traced).
+    At SPARSE occupancy the strong target's sub-Nyquist mask leakage BURIES the weak
+    target for a plain 2D-FFT (which can only mask the strong's main-lobe), while 2D-OMP
+    SUBTRACTS the strong atom and reveals the weak one. GATE (binary, no PSLR proxy):
+      sparse:  FFT misses the weak  AND  OMP finds it
+      dense :  FFT finds the weak   (control: the miss is the sparse leakage, not setup)
+    Plus an R1 convergence check: the verdict must be invariant to n_slow (256 vs full)."""
     os.makedirs(outdir, exist_ok=True)
     rt_ok, rt_rows = roundtrip_ok()
     print(f"[B] omp2d round-trip sub-gate: {'PASS' if rt_ok else 'FAIL'}")
-    vel = (0.0, speed, 0.0); rng = np.random.default_rng(seed)
-    H, freqs, gt = trace_cfr(num, GEOM, vel, n_slow=n_slow)
-    Ns, K = H.shape; prf = gt["prf_hz"]
-    # light receiver noise so the FFT leakage floor is a realistic floor (not -inf)
-    mov = H - H.mean(axis=0, keepdims=True)
-    echo_rms = float(np.sqrt(np.mean(np.abs(mov) ** 2)))
-    sigma = echo_rms / 10 ** (noise_snr_db / 20.0)
-    H = (H + sigma * (rng.standard_normal(H.shape) +
-                      1j * rng.standard_normal(H.shape)) / np.sqrt(2)).astype(np.complex64)
-    range_axis = np.arange(K) * num.range_res_m
-    dopp_axis = np.fft.fftshift(np.fft.fftfreq(Ns, d=1.0 / prf))
-    ri_gt = int(np.argmin(np.abs(range_axis - gt["range_m"])))
-    di_gt = int(np.argmin(np.abs(dopp_axis - gt["doppler_hz"])))
-    print(f"[B] CFR N={Ns}(subsampled={gt['subsampled']}) K={K} prf={prf:.0f}Hz "
-          f"GT@({gt['range_m']:.0f}m,{gt['doppler_hz']:.0f}Hz) noise={noise_snr_db}dB/RE")
+    vel_s, vel_w = (0.0, 8.0, 0.0), (0.0, 14.0, 0.0)         # distinct Doppler cells
+    rng = np.random.default_rng(seed)
+    K = num.n_active; prf = num.symbol_rate; nfull = num.n_symbols(window_s)
+    # GT cells from the monostatic geometry (analytic; Phase A verified RT==analytic).
+    # Phase B studies the sparse-recovery DSP, so the two targets are CLEAN point-target
+    # atoms (a point scatterer's CFR IS an RD atom) at those cells — the RT-spread of a
+    # diffuse cube would otherwise confound which method resolves the weak target.
+    gts0 = analytic_gt(num, GEOM_STRONG, vel_s)
+    gtw0 = analytic_gt(num, GEOM_WEAK, vel_w)
+
+    def build(n):
+        ra, da = _axes(num, n, prf)
+        dis, ris = _bins(ra, da, gts0["range_m"], gts0["doppler_hz"])
+        diw, riw = _bins(ra, da, gtw0["range_m"], gtw0["doppler_hz"])
+        H = (atom(n, K, dis, ris) + 10 ** (-rcs_gap_db / 20.0) * atom(n, K, diw, riw))
+        sigma = 1.0 / 10 ** (noise_snr_db / 20.0)        # strong atom per-RE amp = 1
+        H = (H + sigma * (rng.standard_normal(H.shape) +
+                          1j * rng.standard_normal(H.shape)) / np.sqrt(2)).astype(np.complex64)
+        meta = dict(subsampled=bool(n < nfull), n_symbols_full=nfull, n_slow=n,
+                    prf_hz=prf, doppler_res_hz=prf / n)
+        return H, {**gts0, **meta}, {**gtw0, **meta}, prf
+
+    H, gts, gtw, prf = build(n_slow)
+    Ns = H.shape[0]
+    range_axis, dopp_axis = _axes(num, Ns, prf)
+    print(f"[B] 2 targets: strong@({gts['range_m']:.0f}m,{gts['doppler_hz']:.0f}Hz) "
+          f"weak(−{rcs_gap_db:.0f}dB)@({gtw['range_m']:.0f}m,{gtw['doppler_hz']:.0f}Hz)  "
+          f"N={Ns}(subsampled={gts['subsampled']}) noise={noise_snr_db}dB/RE")
 
     res = {}
-    for name in densities:
-        lo, hi = DENSITY_BINS[name]; rho = (lo + hi) / 2.0
-        W, realised = mask_at_density(Ns, K, rho, rng)
-        Hs = suppress_masked(H, W)
-        rd_fft = rd_transform(Hs)                          # (a) plain 2D-FFT (leaky)
-        Z, support, hist = omp2d(Hs, W)                    # (b) 2D-OMP (Eq 5-6)
-        m_fft = _peak_metrics(np.abs(rd_fft) ** 2, ri_gt, di_gt, range_axis, dopp_axis, num)
-        m_omp = _peak_metrics(np.abs(Z) ** 2, ri_gt, di_gt, range_axis, dopp_axis, num)
-        res[name] = dict(rho=rho, realised=realised, W=W, rd_fft=rd_fft, Z=Z, support=support,
-                         hist=hist, fft=m_fft, omp=m_omp, n_atoms=len(support))
-        print(f"[B] {name:7s} occ={realised*100:5.2f}%  FFT on_GT={m_fft['peak_on_gt']} "
-              f"floor-PSLR={m_fft['pslr_db']:5.1f}dB | OMP on_GT={m_omp['peak_on_gt']} "
-              f"PSLR={m_omp['pslr_db']:5.1f}dB atoms={len(support)}")
+    for name, rho in (("sparse", rho_sparse), ("dense", rho_dense)):
+        r = _eval_density(num, H, prf, gts, gtw, rho, rng)
+        res[name] = r
+        print(f"[B] {name:7s} occ={r['realised']*100:5.2f}%  strong: FFT={r['fft_strong']} OMP={r['omp_strong']} | "
+              f"WEAK: FFT={r['fft_weak']}(snr{r['fft_weak_snr']:.0f}dB) OMP={r['omp_weak']}  atoms={r['n_atoms']}")
 
-    # ---- GATE: OMP recovers target both densities; OMP far cleaner than FFT (dynamic
-    # range); FFT floor worsens dense->sparse (leakier when sparser).
-    sp = res["sparse"]; dn = res["dense"]
-    omp_recovers = bool(sp["omp"]["peak_on_gt"] and dn["omp"]["peak_on_gt"])
-    dyn_range_gap = bool((sp["omp"]["pslr_db"] - sp["fft"]["pslr_db"]) > 20.0)
-    fft_leakier_sparse = bool(sp["fft"]["pslr_db"] < dn["fft"]["pslr_db"] - 2.0)
-    gate_pass = bool(rt_ok and omp_recovers and dyn_range_gap and fft_leakier_sparse)
-    print(f"[B][gate] roundtrip={rt_ok} omp_recovers={omp_recovers} "
-          f"dyn_range_gap={dyn_range_gap}(ΔPSLR={sp['omp']['pslr_db']-sp['fft']['pslr_db']:.0f}dB) "
-          f"FFT_leakier_sparse={fft_leakier_sparse}({sp['fft']['pslr_db']:.0f}<{dn['fft']['pslr_db']:.0f}) "
-          f"-> GATE {'PASS' if gate_pass else 'FAIL'}")
+    sp, dn = res["sparse"], res["dense"]
+    sparse_fft_misses = bool(not sp["fft_weak"])
+    sparse_omp_finds = bool(sp["omp_weak"])
+    dense_fft_finds = bool(dn["fft_weak"])
+    gate_pass = bool(rt_ok and sparse_fft_misses and sparse_omp_finds and dense_fft_finds
+                     and sp["fft_strong"] and sp["omp_strong"])
+    print(f"[B][gate] sparse: FFT-miss-weak={sparse_fft_misses} OMP-finds-weak={sparse_omp_finds} | "
+          f"dense: FFT-finds-weak={dense_fft_finds} -> GATE {'PASS' if gate_pass else 'FAIL'}")
 
-    # ---- figures (R3 per-panel) ----
-    rspan = (max(0, gt["range_m"] - 35), gt["range_m"] + 35)
-    dlim = max(700, 1.6 * abs(gt["doppler_hz"])); dspan = (-dlim, dlim)
+    # ---- R1 convergence check: weak-target verdict invariant to n_slow? ----
+    r1 = None
+    if r1_check_n and r1_check_n != n_slow:
+        print(f"[B][R1] re-evaluating sparse verdict at n_slow={r1_check_n} (full) ...")
+        Hf, gtsf, gtwf, prff = build(r1_check_n)
+        rf = _eval_density(num, Hf, prff, gtsf, gtwf, rho_sparse, np.random.default_rng(seed + 1))
+        invariant = bool(rf["fft_weak"] == sp["fft_weak"] and rf["omp_weak"] == sp["omp_weak"])
+        r1 = dict(n_slow_a=n_slow, n_slow_b=r1_check_n, invariant=invariant,
+                  a=dict(fft_weak=sp["fft_weak"], omp_weak=sp["omp_weak"]),
+                  b=dict(fft_weak=rf["fft_weak"], omp_weak=rf["omp_weak"]))
+        print(f"[B][R1] n={n_slow}: FFT-miss={not sp['fft_weak']}/OMP-hit={sp['omp_weak']}  vs  "
+              f"n={r1_check_n}: FFT-miss={not rf['fft_weak']}/OMP-hit={rf['omp_weak']}  -> invariant={invariant}")
 
-    def _occ(ax, fig):
-        ax.imshow(sp["W"][:, ::20].T, aspect="auto", origin="lower", cmap="Greys")
-        ax.set_title(f"occupancy mask W — sparse {sp['realised']*100:.1f}% (Fig 3a)", fontsize=9)
-        ax.set_xlabel("OFDM symbol"); ax.set_ylabel("subcarrier /20")
-    _panel(outdir, "B_occupancy_sparse.png", _occ)
+    # ---- figures ----
+    rlo = min(gts["range_m"], gtw["range_m"]) - 18; rhi = max(gts["range_m"], gtw["range_m"]) + 18
+    rspan = (max(0, rlo), rhi); dlim = max(700, 1.5 * max(abs(gts["doppler_hz"]), abs(gtw["doppler_hz"])))
+    dspan = (-dlim, dlim)
 
-    def _occd(ax, fig):
-        ax.imshow(dn["W"][:, ::20].T, aspect="auto", origin="lower", cmap="Greys")
-        ax.set_title(f"occupancy mask W — dense {dn['realised']*100:.1f}%", fontsize=9)
-        ax.set_xlabel("OFDM symbol"); ax.set_ylabel("subcarrier /20")
-    _panel(outdir, "B_occupancy_dense.png", _occd)
+    def _mark(ax):
+        ax.plot(gts["doppler_hz"], gts["range_m"], "o", mfc="none", mec="red", ms=14, mew=1.6, label="strong GT")
+        ax.plot(gtw["doppler_hz"], gtw["range_m"], "s", mfc="none", mec="orange", ms=15, mew=1.9,
+                label=f"weak GT (−{rcs_gap_db:.0f} dB)")
 
-    def _timeline(ax, fig):
-        for name, c in (("sparse", "tab:orange"), ("dense", "tab:green")):
-            ax.plot(density_timeline(res[name]["W"]) * 100, color=c, lw=1.0,
-                    label=f"{name} (mean {res[name]['realised']*100:.1f}%)")
-        ax.set_xlabel("OFDM symbol (slow time)"); ax.set_ylabel("occupancy [%]")
-        ax.set_title("occupancy density timeline (Fig 11/5b)", fontsize=9)
-        ax.legend(fontsize=8); ax.grid(alpha=.3)
-    _panel(outdir, "B_density_timeline.png", _timeline)
+    _panel(outdir, "B_occupancy_sparse.png", lambda ax, f: (
+        ax.imshow(sp["W"][:, ::20].T, aspect="auto", origin="lower", cmap="Greys"),
+        ax.set_title(f"occupancy W — sparse {sp['realised']*100:.1f}% (Fig 3a)", fontsize=9),
+        ax.set_xlabel("OFDM symbol"), ax.set_ylabel("subcarrier /20")))
+    _panel(outdir, "B_density_timeline.png", lambda ax, f: ([
+        ax.plot(density_timeline(res[n]["W"]) * 100, lw=1.0, label=f"{n} ({res[n]['realised']*100:.1f}%)")
+        for n in ("sparse", "dense")], ax.set_xlabel("OFDM symbol"), ax.set_ylabel("occupancy [%]"),
+        ax.set_title("density timeline (Fig 11)", fontsize=9), ax.legend(fontsize=8), ax.grid(alpha=.3)))
 
-    # money figure: 2x2 RD {FFT,OMP} x {sparse,dense}
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9.2), constrained_layout=True)
+    fig, axes = plt.subplots(2, 2, figsize=(13.5, 9.4), constrained_layout=True)
     for j, name in enumerate(("sparse", "dense")):
         r = res[name]
-        im = viz.rd_map(axes[0, j], r["rd_fft"], range_axis, dopp_axis, gt=gt, title=(
-            f"2D-FFT — {name} {r['realised']*100:.1f}%   leakage-floor PSLR={r['fft']['pslr_db']:.0f} dB "
-            f"(on_GT={r['fft']['peak_on_gt']})"), r_zoom=rspan, d_zoom=dspan)
-        fig.colorbar(im, ax=axes[0, j], shrink=.8, label="dB"); axes[0, j].legend(loc="upper right", fontsize=7)
-        im = viz.rd_map(axes[1, j], r["Z"], range_axis, dopp_axis, gt=gt, title=(
-            f"2D-OMP — {name} {r['realised']*100:.1f}%   clean PSLR={r['omp']['pslr_db']:.0f} dB "
-            f"(on_GT={r['omp']['peak_on_gt']}, {r['n_atoms']} atoms)"), r_zoom=rspan, d_zoom=dspan)
-        fig.colorbar(im, ax=axes[1, j], shrink=.8, label="dB"); axes[1, j].legend(loc="upper right", fontsize=7)
-    fig.suptitle(f"Phase B — 2D-FFT leakage floor (worse when sparser) vs 2D-OMP clean sparse RD (LaSen Tab.1)"
-                 f"   |   GATE {'PASS ✓' if gate_pass else 'FAIL ✗'}", fontsize=12)
+        im = viz.rd_map(axes[0, j], r["rd_fft"], range_axis, dopp_axis, title=(
+            f"2D-FFT — {name} {r['realised']*100:.1f}%   weak found = {r['fft_weak']}"
+            + ("  ← BURIED" if not r["fft_weak"] else "")), r_zoom=rspan, d_zoom=dspan)
+        _mark(axes[0, j]); fig.colorbar(im, ax=axes[0, j], shrink=.8, label="dB"); axes[0, j].legend(loc="upper right", fontsize=7)
+        im = viz.rd_map(axes[1, j], r["Z"], range_axis, dopp_axis, title=(
+            f"2D-OMP — {name} {r['realised']*100:.1f}%   weak found = {r['omp_weak']}"
+            + ("  ✓ RESOLVED" if r["omp_weak"] else "")), r_zoom=rspan, d_zoom=dspan)
+        if r["support"]:                                   # show recovered atoms (sparse -> sub-pixel else)
+            sd = [dopp_axis[di] for di, ri in r["support"]]; sr = [range_axis[ri] for di, ri in r["support"]]
+            axes[1, j].scatter(sd, sr, s=90, marker="+", color="lime", linewidths=1.8, label="OMP atoms")
+        _mark(axes[1, j]); fig.colorbar(im, ax=axes[1, j], shrink=.8, label="dB"); axes[1, j].legend(loc="upper right", fontsize=7)
+    fig.suptitle("Phase B — sparse: weak target BURIED by strong's 2D-FFT leakage, RESOLVED by 2D-OMP "
+                 f"(LaSen Fig.17/Tab.1)   |   GATE {'PASS ✓' if gate_pass else 'FAIL ✗'}", fontsize=11.5)
     viz.savefig(fig, os.path.join(outdir, "B_rd_compare.png"))
 
     def _conv(ax, fig):
         for name, c in (("sparse", "tab:orange"), ("dense", "tab:green")):
             h = res[name]["hist"]
             ax.semilogy(range(len(h)), np.array(h) / (h[0] + 1e-30), "o-", color=c,
-                        label=f"{name} ({len(h)-1} iters, {len(res[name]['support'])} atoms)")
+                        label=f"{name} ({res[name]['n_atoms']} atoms: strong→weak→…)")
         ax.set_xlabel("OMP iteration"); ax.set_ylabel("residual norm (norm.)")
-        ax.set_title("2D-OMP convergence (Eq 6)", fontsize=9); ax.legend(fontsize=8); ax.grid(alpha=.3)
+        ax.set_title("2D-OMP convergence — strong removed first, weak revealed (Eq 6)", fontsize=9)
+        ax.legend(fontsize=8); ax.grid(alpha=.3)
     _panel(outdir, "B_omp_convergence.png", _conv)
 
+    if r1:
+        def _r1(ax, fig):
+            labels = [f"n_slow={r1['n_slow_a']}\n(subsampled)", f"n_slow={r1['n_slow_b']}\n(full symbols)"]
+            fftm = [int(not r1["a"]["fft_weak"]), int(not r1["b"]["fft_weak"])]
+            omph = [int(r1["a"]["omp_weak"]), int(r1["b"]["omp_weak"])]
+            x = np.arange(2)
+            ax.bar(x - 0.2, fftm, 0.4, label="FFT misses weak", color="tab:red")
+            ax.bar(x + 0.2, omph, 0.4, label="OMP finds weak", color="tab:green")
+            ax.set_xticks(x); ax.set_xticklabels(labels); ax.set_ylim(0, 1.3); ax.set_yticks([0, 1])
+            ax.set_yticklabels(["No", "Yes"])
+            verdict = ("invariant ✓" if r1["invariant"] else
+                       "subsampled loses OMP recovery → FULL is faithful")
+            ax.set_title(f"R1 convergence check — full {r1['n_slow_a']} vs {r1['n_slow_b']}: {verdict}", fontsize=8.5)
+            ax.legend(fontsize=8)
+        _panel(outdir, "B_r1_convergence.png", _r1)
+
     out = dict(phase="B", config=dict(fc_ghz=num.fc/1e9, bw_mhz=num.bw/1e6, n_slow=Ns,
-               subsampled=gt["subsampled"], n_symbols_full=gt["n_symbols_full"],
-               K=K, prf_hz=prf, range_res_m=num.range_res_m, speed_ms=speed,
-               noise_snr_db=noise_snr_db), gt=gt, roundtrip=dict(ok=rt_ok, cells=rt_rows),
+               subsampled=gts["subsampled"], n_symbols_full=gts["n_symbols_full"], K=num.n_active,
+               prf_hz=prf, range_res_m=num.range_res_m, rcs_gap_db=rcs_gap_db, noise_snr_db=noise_snr_db,
+               rho_sparse=rho_sparse, rho_dense=rho_dense),
+               gt_strong=gts, gt_weak=gtw, roundtrip=dict(ok=rt_ok, cells=rt_rows), r1_check=r1,
                results={k: dict(rho=v["rho"], realised=v["realised"], n_atoms=v["n_atoms"],
-                                fft_on_gt=v["fft"]["peak_on_gt"], fft_pslr_db=v["fft"]["pslr_db"],
-                                omp_on_gt=v["omp"]["peak_on_gt"], omp_pslr_db=v["omp"]["pslr_db"])
-                        for k, v in res.items()},
-               gate=dict(roundtrip_ok=rt_ok, omp_recovers=omp_recovers,
-                         dyn_range_gap=dyn_range_gap, fft_leakier_sparse=fft_leakier_sparse,
-                         gate_pass=gate_pass))
+                                fft_finds_weak=v["fft_weak"], fft_weak_snr_db=v["fft_weak_snr"],
+                                omp_finds_weak=v["omp_weak"], fft_finds_strong=v["fft_strong"],
+                                omp_finds_strong=v["omp_strong"]) for k, v in res.items()},
+               gate=dict(roundtrip_ok=rt_ok, sparse_fft_misses_weak=sparse_fft_misses,
+                         sparse_omp_finds_weak=sparse_omp_finds, dense_fft_finds_weak=dense_fft_finds,
+                         r1_invariant=(r1["invariant"] if r1 else None), gate_pass=gate_pass))
     json.dump(out, open(os.path.join(outdir, "lasen_phaseB.json"), "w"), indent=1)
     print(f"[B][out] {outdir}/B_*.png + lasen_phaseB.json  GATE={'PASS' if gate_pass else 'FAIL'}")
     return out
@@ -336,9 +415,15 @@ if __name__ == "__main__":
     ap.add_argument("--window", type=float, default=0.1)
     ap.add_argument("--speed", type=float, default=12.0)
     ap.add_argument("--fc", type=float, default=5.8e9)
+    ap.add_argument("--rcs-gap", type=float, default=46.0)
+    ap.add_argument("--noise-snr", type=float, default=18.0)
+    ap.add_argument("--n-slow", type=int, default=2803)
+    ap.add_argument("--rho-sparse", type=float, default=0.012)
+    ap.add_argument("--r1-n", type=int, default=256, help="0 to skip R1 convergence check")
     a = ap.parse_args()
     num = NRNumerology(fc=a.fc)
     if a.phase == "A":
         phase_a(a.outdir, num, window_s=a.window, speed=a.speed)
     elif a.phase == "B":
-        phase_b(a.outdir, num, window_s=a.window, speed=a.speed)
+        phase_b(a.outdir, num, window_s=a.window, n_slow=a.n_slow, rcs_gap_db=a.rcs_gap,
+                noise_snr_db=a.noise_snr, rho_sparse=a.rho_sparse, r1_check_n=a.r1_n)

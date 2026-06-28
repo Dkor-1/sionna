@@ -88,45 +88,54 @@ if a:
 # ---- Phase B ----
 b = load("lasen_phaseB.json")
 if b:
-    g = b["gate"]; c = b["config"]; rs = b["results"]
+    g = b["gate"]; c = b["config"]; rs = b["results"]; r1 = b.get("r1_check")
     verdict = "✅ PASS" if g["gate_pass"] else "❌ FAIL"
-    sp, dn = rs["sparse"], rs["dense"]
-    cells.append(md(
+    sp, dn = rs["sparse"], rs["dense"]; gw = b["gt_weak"]
+    _b = [
         f"## Phase B — 비균일 점유 + 2D-OMP (핵심 novelty)   ·   GATE {verdict}",
         "",
         "실제 5G 트래픽은 **비균일 점유**(전송된 RE만 관측) → masked CFR **ĥ = W∘H = Φz**(Eq 4-5). "
-        "plain 2D-FFT는 미전송 RE를 0으로 두고 변환 → **sub-Nyquist 누설 바닥**(점유가 sparse할수록 악화); "
-        "**2D-OMP**는 masked 관측을 sparse 모델로 적합(Eq 6) → **깨끗한 RD**(큰 동적범위). "
-        f"점유밀도는 논문 측정 bin(sparse {sp['realised']*100:.1f}% / dense {dn['realised']*100:.1f}%).",
+        "LaSen Fig.17/§6.4의 핵심: **강한 표적의 sub-Nyquist 마스크 누설이 약한 표적을 묻는다.** "
+        f"강(near {b['gt_strong']['range_m']:.0f} m) + 약(distant {gw['range_m']:.0f} m, **−{c['rcs_gap_db']:.0f} dB**) 2표적, "
+        "서로 다른 Doppler. plain 2D-FFT는 강 표적의 누설만 main-lobe 마스킹할 뿐 → sparse에서 약 표적 **놓침**; "
+        "**2D-OMP**는 강 atom을 **빼내고**(Eq 6) 약 표적을 **드러냄**.",
         "",
-        f"- **omp2d round-trip sub-게이트**: {'PASS' if g['roundtrip_ok'] else 'FAIL'} "
-        "(rd_transform(atom(di,ri))이 정확히 (di,ri) 셀에 피크 — 부호·규약 일치).",
-        f"- **게이트:** OMP가 양 밀도에서 표적 복원({'예' if g['omp_recovers'] else '아니오'}); "
-        f"OMP 동적범위 ≫ FFT(sparse ΔPSLR={sp['omp_pslr_db']-sp['fft_pslr_db']:.0f} dB); "
-        f"FFT 누설 바닥이 sparse에서 악화({sp['fft_pslr_db']:.0f} < dense {dn['fft_pslr_db']:.0f} dB).",
+        f"- **omp2d round-trip sub-게이트 {'PASS' if g['roundtrip_ok'] else 'FAIL'}** "
+        "(rd_transform(atom(di,ri))이 정확히 (di,ri) — 부호·규약 일치).",
+        f"- **게이트(binary, 프록시 아님):** sparse({sp['realised']*100:.1f}%)에서 **2D-FFT 약표적 놓침**"
+        f"({'예' if g['sparse_fft_misses_weak'] else '아니오'}) **& 2D-OMP 잡음**({'예' if g['sparse_omp_finds_weak'] else '아니오'}); "
+        f"dense({dn['realised']*100:.1f}%)에선 **2D-FFT도 잡음**({'예' if g['dense_fft_finds_weak'] else '아니오'}, 대조군). "
+        f"weak SNR: sparse FFT={sp['fft_weak_snr_db']:.0f} dB(<12=놓침) vs dense FFT={dn['fft_weak_snr_db']:.0f} dB.",
         "",
-        "### 점유 마스크 W (sparse vs dense) + 밀도 timeline",
-        img_md("B_occupancy_sparse.png", "occ sparse"), img_md("B_occupancy_dense.png", "occ dense"),
-        img_md("B_density_timeline.png", "density timeline"),
-        "*왜:* DMRS comb은 항상, PDSCH 데이터는 트래픽 따라 — sparse일수록 관측 RE 급감(Fig 3a/11).",
+        "### 점유 마스크 W + 밀도 timeline",
+        img_md("B_occupancy_sparse.png", "occ sparse"), img_md("B_density_timeline.png", "density timeline"),
+        "*왜:* DMRS comb 항상 + PDSCH 트래픽 — sparse일수록 관측 RE 급감(Fig 3a/11).",
         "",
-        "### RD 비교: 2D-FFT(누설) vs 2D-OMP(깨끗)  — money figure (Tab.1)",
+        "### RD 머니 피규어: 강의 누설이 약을 묻음(FFT) vs OMP가 둘 다 복원 (Fig 17/Tab 1)",
         img_md("B_rd_compare.png", "RD compare"),
-        f"*왜:* 단일 표적은 OMP 1st atom = FFT 피크라 **피크 위치는 같다**(둘 다 on_GT). 차이는 **동적범위** — "
-        f"FFT는 sparse에서 누설바닥 PSLR {sp['fft_pslr_db']:.0f} dB(약한 표적이 묻힘), OMP는 {sp['omp_pslr_db']:.0f} dB"
-        "(노이즈 바닥까지 깨끗). 이게 LaSen sparse recovery가 FFT를 이기는 이유.",
+        "*왜:* **2D-FFT sparse(좌상)** — 약 표적(주황 □)이 강 표적 누설에 **묻혀 놓침**; "
+        "**2D-OMP sparse(좌하)** — 강 atom 제거 후 약 표적까지 **복원**(초록 + = 복원 atom). dense(우)에선 누설↓라 FFT도 잡음.",
         "",
-        "### 2D-OMP 수렴 (잔차 norm vs iter)",
+        "### 2D-OMP 수렴 (강→약 순서로 atom 선택)",
         img_md("B_omp_convergence.png", "omp convergence"),
-        f"*왜:* OMP가 강한 표적을 먼저 잡고 잔차를 줄임(atoms sparse {sp['n_atoms']} / dense {dn['n_atoms']}). "
-        "RT 드론은 완전 단일 atom이 아니라(다중경로 spread) 몇 개 atom으로 적합됨.",
+        f"*왜:* OMP가 강 표적을 먼저 빼고 잔차에서 약 표적을 드러냄(atoms: sparse {sp['n_atoms']} / dense {dn['n_atoms']}).",
         "",
-        f"→ **GATE {verdict}.** 다음 = Phase C(ID score + global/local + Kalman 추적).",
+    ] + ([
+        "### R1 수렴체크 — n_slow 불변성 (필수)",
+        img_md("B_r1_convergence.png", "R1 check"),
+        f"*왜:* 게이트 verdict를 n_slow ∈ {{{r1['n_slow_a']}, {r1['n_slow_b']}}}에서 비교. "
+        + (f"불변(✓) — 결론 안정." if r1["invariant"] else
+           f"**불변 아님**: full {r1['n_slow_a']}에선 OMP가 약 표적 복원하나 subsample {r1['n_slow_b']}에선 못 함 "
+           f"→ **256은 비충실, full {r1['n_slow_a']}(실제 OFDM 심볼)로 실행**(R1 절 준수, 게이트는 full에서 PASS).") ,
         "",
-        "_정직 노트: 단일 표적이라 'OMP만 표적을 본다'는 못 보임(둘 다 본다) — 차이는 **누설바닥/동적범위**. "
-        "약한-2nd-표적 동적범위 데모는 RT 드론 spread에 가려 후속 과제. slow-time는 OMP 가용성 위해 "
-        f"{c['n_slow']} 심볼로 subsample(Phase A는 full {c['n_symbols_full']}). 상세: `docs/FAITHFULNESS.md`._",
-    ))
+    ] if r1 else []) + [
+        f"→ **GATE {verdict}** (full {c['n_slow']} 실심볼). 다음 = Phase C(ID score + global/local + Kalman 추적).",
+        "",
+        "_정직 노트: 2표적은 **clean point-target atoms**(점표적 CFR=atom; RT 충실성은 Phase A가 확립, 드론 "
+        "다중경로 spread가 약-표적 복원을 가리는 것 회피). 약 echo는 **deterministic −gap dB**(부모 fix #4). "
+        "상세: `docs/FAITHFULNESS.md`._",
+    ]
+    cells.append(md(*_b))
 
 # ---- (Phase C/D append here as they land) ----
 

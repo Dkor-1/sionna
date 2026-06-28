@@ -30,6 +30,12 @@ from nr_waveform import NRNumerology
 # monostatic geometry: gNB (tx~=rx co-located), moving drone, ground clutter
 GEOM = dict(tx=(0.0, 0.0, 12.0), rx=(0.6, 0.0, 12.0), drone=(0.0, 45.0, 30.0))
 
+# Phase-B two-target geometry: a STRONG near drone + a WEAK distant drone (different
+# range AND Doppler cells). The weak echo is set deterministically `rcs_gap_db` below
+# the strong (RCS + range path-loss, parent fix #4 philosophy) — not RT draw noise.
+GEOM_STRONG = dict(tx=(0.0, 0.0, 12.0), rx=(0.6, 0.0, 12.0), drone=(0.0, 30.0, 22.0))
+GEOM_WEAK = dict(tx=(0.0, 0.0, 12.0), rx=(0.6, 0.0, 12.0), drone=(0.0, 90.0, 45.0))
+
 
 def _unit(v):
     n = np.linalg.norm(v)
@@ -93,3 +99,20 @@ def trace_cfr(num: NRNumerology, geom, velocity, *, window_s=0.1, n_slow=None,
               doppler_res_hz=float(prf / n_slow),
               n_paths=int(np.sum(np.isfinite(np.asarray(paths.tau).ravel()))))
     return H, freqs, gt
+
+
+def trace_two_targets(num, vel_s, vel_w, *, rcs_gap_db=25.0, **kw):
+    """Combined CFR of a STRONG near drone + a WEAK distant drone (Phase B). Each is a
+    separate monostatic RT trace; their MOVING components (mean-subtracted) are summed
+    with the weak `rcs_gap_db` below the strong — deterministic (RCS+range encoded),
+    not RT-draw noise (parent fix #4 philosophy). The strong target's static component
+    is kept (suppressed later by mean-subtraction). Returns H, freqs, and a GT dict
+    with 'strong'/'weak' sub-GTs."""
+    Hs, freqs, gts = trace_cfr(num, GEOM_STRONG, vel_s, **kw)
+    Hw, _, gtw = trace_cfr(num, GEOM_WEAK, vel_w, **kw)
+    Hs_mv = Hs - Hs.mean(axis=0, keepdims=True)          # strong mover
+    Hw_mv = Hw - Hw.mean(axis=0, keepdims=True)          # weak mover
+    ps = float(np.mean(np.abs(Hs_mv) ** 2)); pw = float(np.mean(np.abs(Hw_mv) ** 2))
+    a_w = np.sqrt(ps / max(pw, 1e-30)) * 10 ** (-rcs_gap_db / 20.0)   # weak = strong − gap dB
+    H = (Hs.mean(axis=0, keepdims=True) + Hs_mv + a_w * Hw_mv).astype(np.complex64)
+    return H, freqs, dict(strong=gts, weak=gtw, rcs_gap_db=float(rcs_gap_db))

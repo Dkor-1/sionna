@@ -13,7 +13,7 @@ next), **viz-first** (every module emits a figure mapped to a LaSen figure).
 | | What | Gate | Status |
 |---|---|---|---|
 | **A** | monostatic CFR → full-band 2D-FFT RD | peak on analytic GT + 0-Hz clutter collapses (Fig 4) | ✅ PASS |
-| B | non-uniform occupancy + 2D-OMP (Eq 4-6) | round-trip + FFT leakage-floor vs OMP clean (Tab.1) | ✅ PASS |
+| B | non-uniform occupancy + 2D-OMP (Eq 4-6) | round-trip + **binary**: sparse FFT misses weak / OMP finds it (Fig.17) | ✅ PASS (full 2803) |
 | C | ID score (Eq 7-9) + global/local + Kalman (Eq 10-13) | track follows GT (Fig 6) | ⏳ |
 | D | RMSE/CE/DR + baselines (2D-OMP, Lerp) | LaSen < baselines, RMSE trends (Fig 9,12-14) | ⏳ |
 

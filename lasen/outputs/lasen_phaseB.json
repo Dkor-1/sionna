@@ -3,31 +3,46 @@
  "config": {
   "fc_ghz": 5.8,
   "bw_mhz": 78.12,
-  "n_slow": 256,
-  "subsampled": true,
+  "n_slow": 2803,
+  "subsampled": false,
   "n_symbols_full": 2803,
   "K": 2604,
   "prf_hz": 28029.19708029197,
   "range_res_m": 1.9187945340501793,
-  "speed_ms": 12.0,
-  "noise_snr_db": 0.0
+  "rcs_gap_db": 46.0,
+  "noise_snr_db": 18.0,
+  "rho_sparse": 0.012,
+  "rho_dense": 0.16
  },
- "gt": {
-  "range_m": 48.16834014645012,
-  "round_trip_m": 96.33668029290024,
-  "delay_s": 3.2134457596294916e-07,
-  "doppler_hz": -431.0949145513587,
-  "v_radial_ms": 11.141720290623113,
-  "Rtx": 48.46648326421054,
-  "Rrx": 48.4701970286897,
+ "gt_strong": {
+  "range_m": 31.32562239547955,
+  "round_trip_m": 62.6512447909591,
+  "delay_s": 2.089820578173421e-07,
+  "doppler_hz": -293.6361020625127,
+  "v_radial_ms": 7.58946638440411,
+  "Rtx": 31.622776601683793,
+  "Rrx": 31.628468189275306,
   "baseline_m": 0.6,
-  "prf_hz": 28029.19708029197,
-  "window_s": 0.009133333333333334,
-  "n_slow": 256,
+  "subsampled": false,
   "n_symbols_full": 2803,
-  "subsampled": true,
-  "doppler_res_hz": 109.48905109489051,
-  "n_paths": 46
+  "n_slow": 2803,
+  "prf_hz": 28029.19708029197,
+  "doppler_res_hz": 9.99971354987227
+ },
+ "gt_weak": {
+  "range_m": 95.56021071914316,
+  "round_trip_m": 191.12042143828631,
+  "delay_s": 6.375091045095148e-07,
+  "doppler_hz": -508.59191517615295,
+  "v_radial_ms": 13.144268422412521,
+  "Rtx": 95.85927185202274,
+  "Rrx": 95.86114958626356,
+  "baseline_m": 0.6,
+  "subsampled": false,
+  "n_symbols_full": 2803,
+  "n_slow": 2803,
+  "prf_hz": 28029.19708029197,
+  "doppler_res_hz": 9.99971354987227
  },
  "roundtrip": {
   "ok": true,
@@ -78,31 +93,47 @@
    }
   ]
  },
+ "r1_check": {
+  "n_slow_a": 2803,
+  "n_slow_b": 256,
+  "invariant": false,
+  "a": {
+   "fft_weak": false,
+   "omp_weak": true
+  },
+  "b": {
+   "fft_weak": false,
+   "omp_weak": false
+  }
+ },
  "results": {
   "sparse": {
-   "rho": 0.037000000000000005,
-   "realised": 0.03686635944700461,
-   "n_atoms": 12,
-   "fft_on_gt": true,
-   "fft_pslr_db": 43.0191650390625,
-   "omp_on_gt": true,
-   "omp_pslr_db": 155.55044555664062
+   "rho": 0.012,
+   "realised": 0.011975456404236627,
+   "n_atoms": 2,
+   "fft_finds_weak": false,
+   "fft_weak_snr_db": 6.886802058070494,
+   "omp_finds_weak": true,
+   "fft_finds_strong": true,
+   "omp_finds_strong": true
   },
   "dense": {
-   "rho": 0.162,
-   "realised": 0.1617103494623656,
-   "n_atoms": 12,
-   "fft_on_gt": true,
-   "fft_pslr_db": 49.41093444824219,
-   "omp_on_gt": true,
-   "omp_pslr_db": 155.64337158203125
+   "rho": 0.16,
+   "realised": 0.15978998253462248,
+   "n_atoms": 2,
+   "fft_finds_weak": true,
+   "fft_weak_snr_db": 19.81726300914793,
+   "omp_finds_weak": true,
+   "fft_finds_strong": true,
+   "omp_finds_strong": true
   }
  },
  "gate": {
   "roundtrip_ok": true,
-  "omp_recovers": true,
-  "dyn_range_gap": true,
-  "fft_leakier_sparse": true,
+  "sparse_fft_misses_weak": true,
+  "sparse_omp_finds_weak": true,
+  "dense_fft_finds_weak": true,
+  "r1_invariant": false,
   "gate_pass": true
  }
 }
